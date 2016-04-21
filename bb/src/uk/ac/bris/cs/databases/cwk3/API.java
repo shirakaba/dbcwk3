@@ -4,7 +4,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.ResultSet;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
@@ -37,25 +36,17 @@ public class API implements APIProvider {
     /*implemented by Alex*/
     @Override
     public Result<Map<String, String>> getUsers() {
-	final String STMT = "SELECT * FROM Person;";
-	ResultSet rs;
-	
-
-	try(PreparedStatement p = c.prepareStatement(STMT)){
-		rs = p.executeQuery();
-		Map map = new HashMap();
-
-		while(rs.next()){
-			map.put(rs.getNString("username"), rs.getNString("name"));
-			System.out.println(rs.getNString(0) + " " + rs.getNString(1));
-		}
-
- 		return Result.success(map);
-	}catch(SQLException e){
-
-	}
-
-        throw new UnsupportedOperationException("Not supported yet.");
+        final String STMT = "SELECT username, name FROM Person;";
+        Map <String, String> map = new HashMap<>();
+        try(PreparedStatement p = c.prepareStatement(STMT)){
+            ResultSet rs = p.executeQuery();
+            while(rs.next()){
+                map.put(rs.getString("username"), rs.getString("name"));
+            }
+            return Result.success(map);
+        }catch(SQLException e){
+            return Result.failure(e.getMessage());
+        }
     }
 
     @Override

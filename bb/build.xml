@@ -20,4 +20,14 @@
             </classpath>
         </java>
     </target>
+    <target name="run2">
+        <java classname="uk.ac.bris.cs.databases.web.Server2">
+            <classpath>
+                <fileset dir="lib">
+                    <include name="*.jar" />
+                </fileset>
+                <pathelement path="target" />
+            </classpath>
+        </java>
+    </target>
 </project>

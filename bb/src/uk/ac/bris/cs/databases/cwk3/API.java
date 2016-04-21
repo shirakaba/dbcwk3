@@ -1,6 +1,8 @@
 package uk.ac.bris.cs.databases.cwk3;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 import uk.ac.bris.cs.databases.api.APIProvider;
@@ -30,6 +32,14 @@ public class API implements APIProvider {
 
     @Override
     public Result<Map<String, String>> getUsers() {
+	final String STMT = "";
+
+	try(PreparedStatement p = c.prepareStatement(STMT)){
+
+	}catch(SQLException e){
+
+	}
+
         throw new UnsupportedOperationException("Not supported yet.");
     }
 

@@ -37,7 +37,7 @@ public class API implements APIProvider {
     /*implemented by Alex*/
     @Override
     public Result<Map<String, String>> getUsers() {
-	final String STMT = "SELECT username, name FROM Person;";
+	final String STMT = "SELECT * FROM Person;";
 	ResultSet rs;
 	
 
@@ -47,6 +47,7 @@ public class API implements APIProvider {
 
 		while(rs.next()){
 			map.put(rs.getNString("username"), rs.getNString("name"));
+			System.out.println(rs.getNString(0) + " " + rs.getNString(1));
 		}
 
  		return Result.success(map);

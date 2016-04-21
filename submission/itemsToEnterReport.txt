@@ -1,0 +1,5 @@
+1) names and IDs: namesAndIDs.txt
+2) ER diagram of the database schema in notation of choice: schema.svg
+3) A .sql create-drop script to set up the schema: being built in a Google Doc (CREATE DROP SCRIPT);
+   ... according to the relational diagram in the same Google Drive folder.
+4) A description of the design choices involved in the schema.

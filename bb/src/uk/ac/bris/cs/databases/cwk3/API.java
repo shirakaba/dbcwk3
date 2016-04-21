@@ -3,8 +3,10 @@ package uk.ac.bris.cs.databases.cwk3;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.ResultSet;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 import uk.ac.bris.cs.databases.api.APIProvider;
 import uk.ac.bris.cs.databases.api.AdvancedForumSummaryView;
 import uk.ac.bris.cs.databases.api.AdvancedForumView;
@@ -30,12 +32,22 @@ public class API implements APIProvider {
         this.c = c;
     }
 
+    /*implemented by Alex*/
     @Override
     public Result<Map<String, String>> getUsers() {
-	final String STMT = "";
+	final String STMT = "SELECT username, name FROM Person;";
+	ResultSet rs;
+	
 
 	try(PreparedStatement p = c.prepareStatement(STMT)){
+		rs = p.executeQuery();
+		Map map = new HashMap();
 
+		while(rs.next()){
+			map.put(rs.getNString("username"), rs.getNString("name"));
+		}
+
+ 		return Result.success(map);
 	}catch(SQLException e){
 
 	}

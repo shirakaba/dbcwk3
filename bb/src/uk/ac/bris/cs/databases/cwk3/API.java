@@ -2,11 +2,13 @@ package uk.ac.bris.cs.databases.cwk3;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.ResultSet;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
+
 import uk.ac.bris.cs.databases.api.APIProvider;
 import uk.ac.bris.cs.databases.api.AdvancedForumSummaryView;
 import uk.ac.bris.cs.databases.api.AdvancedForumView;
@@ -102,7 +104,25 @@ public class API implements APIProvider {
 
     @Override
     public Result addNewPerson(String name, String username, String studentId) {
-        throw new UnsupportedOperationException("Not supported yet.");
+    	
+    	final String STMT = "INSERT INTO Person (username, name, studentId) VALUES (?, ?, ?)";
+    	boolean myResult;
+    	
+    	
+    	try(PreparedStatement p = c.prepareStatement(STMT)){
+    		p.setString(1,  username);
+    		p.setString(2, name);
+    		p.setString(3, studentId);
+    		
+    		 myResult = p.execute();
+    	}catch(SQLException e){
+			throw new UnsupportedOperationException("exception " + e);
+    	}
+    	
+//    	INSERT INTO Person (username, name, studentId) VALUES ("shirakaba", "Jamie", "jb15339");
+    	
+    	return Result.success();
+        //hrow new UnsupportedOperationException("Not supported yet.");
     }
 
     @Override

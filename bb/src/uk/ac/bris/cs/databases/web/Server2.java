@@ -16,11 +16,11 @@ import uk.ac.bris.cs.databases.cwk3.API;
 /**
  * @author csxdb
  */
-public class Server extends RouterNanoHTTPD {
+public class Server2 extends RouterNanoHTTPD {
     
     private static final String DATABASE = "jdbc:sqlite:database/database.sqlite3";
 
-    public Server() {
+    public Server2() {
         super(8000);
         addMappings();
     }
@@ -84,7 +84,10 @@ public class Server extends RouterNanoHTTPD {
         
         // server //
         
-        Server server = new Server();
-        ServerRunner.run(Server.class);
+        //Server server = new Server();
+        //ServerRunner.run(Server.class);
+		APIProvider api = c.getApi();
+		api.addNewPerson("Jamie", "shirakaba", "jb15339");
+		api.getUsers();
     }
 }

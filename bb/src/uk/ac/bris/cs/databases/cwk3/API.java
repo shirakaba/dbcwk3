@@ -19,6 +19,7 @@ import uk.ac.bris.cs.databases.api.PostView;
 import uk.ac.bris.cs.databases.api.Result;
 import uk.ac.bris.cs.databases.api.PersonView;
 import uk.ac.bris.cs.databases.api.SimpleForumSummaryView;
+import uk.ac.bris.cs.databases.api.SimplePostView;
 import uk.ac.bris.cs.databases.api.SimpleTopicView;
 import uk.ac.bris.cs.databases.api.TopicView;
 
@@ -73,22 +74,22 @@ public class API implements APIProvider {
     // FINISHED but untested as it depends upon getPersonView.
     @Override
     public Result<List<PersonView>> getLikers(long topicId) {
-    	Long topicIDforStringification = topicId;
+        Long topicIDforStringification = topicId;
 //        final String STMT = "SELECT PersonId FROM LikedTopic WHERE PersonId = ?;";
         // This gets the PersonIds, but would need to be joined to Person to get their usernames.
         final String STMT = "SELECT username FROM LikedTopic "
-        		+ "INNER JOIN Person ON PersonId = Person.id "
-        		+ "WHERE TopicId = ? " // replace this '?' with the input topicId
-        		+ "ORDER BY username ASC;";
+                + "INNER JOIN Person ON PersonId = Person.id "
+                + "WHERE TopicId = ? " // replace this '?' with the input topicId
+                + "ORDER BY username ASC;";
         List <PersonView> list = new ArrayList<>();
         PersonView currentPersonView;
         
         try(PreparedStatement p = c.prepareStatement(STMT)){
-    		p.setString(1,  topicIDforStringification.toString());
+            p.setString(1,  topicIDforStringification.toString());
             ResultSet rs = p.executeQuery();
             while(rs.next()){
-            	// May work!
-            	currentPersonView = getPersonView(rs.getString("username")).getValue();
+                // May work!
+                currentPersonView = getPersonView(rs.getString("username")).getValue();
                 list.add(currentPersonView);
                 System.out.println(currentPersonView);
             }
@@ -96,13 +97,38 @@ public class API implements APIProvider {
         }catch(SQLException e){
             return Result.failure(e.getMessage());
         }
-    	
+        
 //        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     // to Jamie
     @Override
     public Result<SimpleTopicView> getSimpleTopic(long topicId) {
+//      Long topicIDforStringification = topicId;
+//      String title;
+//      List<SimplePostView> posts = new ArrayList<>();
+//      SimpleTopicView simpleTopicView = new SimpleTopicView(topicId, title, posts);
+//
+//
+//
+//      final String STMT = "SELECT title FROM Topic "
+//              + "WHERE TopicId = ?;";
+//      List <PersonView> list = new ArrayList<>();
+//      SimplePostView simplePostView;
+//
+//      try(PreparedStatement p = c.prepareStatement(STMT)){
+//          p.setString(1,  topicIDforStringification.toString());
+//          ResultSet rs = p.executeQuery();
+//          while(rs.next()){
+//              simplePostView = new SimplePostView(0, STMT, STMT, 0); // note to self: fill in this constructor using SimplePostView.java
+//              posts.add(simplePostView);
+//              System.out.println(simplePostView);
+//          }
+//          return Result.success();
+//      }catch(SQLException e){
+//          return Result.failure(e.getMessage());
+//      }
+
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
@@ -134,25 +160,25 @@ public class API implements APIProvider {
     /* Implemented by Jamie */
     @Override
     public Result addNewPerson(String name, String username, String studentId) {
-    	
-    	final String STMT = "INSERT INTO Person (username, name, studentId) VALUES (?, ?, ?)";
-    	boolean myResult;
-    	
-    	
-    	try(PreparedStatement p = c.prepareStatement(STMT)){
-    		p.setString(1,  username);
-    		p.setString(2, name);
-    		p.setString(3, studentId);
-    		
-    		 myResult = p.execute();
-    		 System.out.println("reaches execute");
-    	}catch(SQLException e){
-			throw new UnsupportedOperationException("exception " + e);
-    	}
-    	
-//    	INSERT INTO Person (username, name, studentId) VALUES ("shirakaba", "Jamie", "jb15339");
-    	
-    	return Result.success();
+        
+        final String STMT = "INSERT INTO Person (username, name, studentId) VALUES (?, ?, ?)";
+        boolean myResult;
+        
+        
+        try(PreparedStatement p = c.prepareStatement(STMT)){
+            p.setString(1,  username);
+            p.setString(2, name);
+            p.setString(3, studentId);
+            
+             myResult = p.execute();
+             System.out.println("reaches execute");
+        }catch(SQLException e){
+            throw new UnsupportedOperationException("exception " + e);
+        }
+        
+//      INSERT INTO Person (username, name, studentId) VALUES ("shirakaba", "Jamie", "jb15339");
+        
+        return Result.success();
         //Throw new UnsupportedOperationException("Not supported yet.");
     }
 
@@ -202,4 +228,3 @@ public class API implements APIProvider {
     }
     
    }
-

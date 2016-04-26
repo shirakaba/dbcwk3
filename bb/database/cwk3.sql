@@ -22,7 +22,7 @@ CREATE TABLE Topic (
 
 CREATE TABLE Forum (
   id INTEGER PRIMARY KEY,
-  title TEXT NOT NULL UNIQUE,
+  title TEXT NOT NULL UNIQUE
 );
 
 CREATE TABLE Post (
@@ -30,7 +30,7 @@ CREATE TABLE Post (
   date DATE NOT NULL,
   text TEXT NOT NULL,
   PersonId INTEGER REFERENCES Person(id),
-  TopicId INTEGER REFERENCES Topic(id),
+  TopicId INTEGER REFERENCES Topic(id)
 );
 
 CREATE TABLE LikedPost (

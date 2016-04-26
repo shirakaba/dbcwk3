@@ -49,32 +49,42 @@ public class API implements APIProvider {
             return Result.failure(e.getMessage());
         }
     }
-
+    
+    // to Alex
     @Override
     public Result<PersonView> getPersonView(String username) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
+    // to Phan, but dependent on Alex populating db.
     @Override
     public Result<List<SimpleForumSummaryView>> getSimpleForums() {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
+    // to Phan
     @Override
     public Result<Integer> countPostsInTopic(long topicId) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
-
+    
+    // to Jamie
     @Override
     public Result<List<PersonView>> getLikers(long topicId) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
+    // to Jamie
     @Override
     public Result<SimpleTopicView> getSimpleTopic(long topicId) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
+    /* 
+     * Level 2 - standard difficulty. Most groups should get all of these.
+     * They require a little bit more thought than the level 1 API though.
+     */
+    
     @Override
     public Result<PostView> getLatestPost(long topicId) {
         throw new UnsupportedOperationException("Not supported yet.");
@@ -95,6 +105,7 @@ public class API implements APIProvider {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
+    /* Implemented by Jamie */
     @Override
     public Result addNewPerson(String name, String username, String studentId) {
     	
@@ -116,7 +127,7 @@ public class API implements APIProvider {
 //    	INSERT INTO Person (username, name, studentId) VALUES ("shirakaba", "Jamie", "jb15339");
     	
     	return Result.success();
-        //hrow new UnsupportedOperationException("Not supported yet.");
+        //Throw new UnsupportedOperationException("Not supported yet.");
     }
 
     @Override

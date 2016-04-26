@@ -33,7 +33,7 @@ public class API implements APIProvider {
         this.c = c;
     }
 
-    /*implemented by Alex*/
+    /*implemented by Alex & Phan*/
     @Override
     public Result<Map<String, String>> getUsers() {
         final String STMT = "SELECT username, name FROM Person;";

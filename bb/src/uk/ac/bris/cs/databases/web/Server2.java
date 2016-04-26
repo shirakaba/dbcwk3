@@ -6,11 +6,14 @@ package uk.ac.bris.cs.databases.web;
 import fi.iki.elonen.router.RouterNanoHTTPD;
 import fi.iki.elonen.util.ServerRunner;
 import freemarker.template.Configuration;
+
 import java.io.File;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+
 import uk.ac.bris.cs.databases.api.APIProvider;
+import uk.ac.bris.cs.databases.api.Result;
 import uk.ac.bris.cs.databases.cwk3.API;
 
 /**
@@ -87,7 +90,10 @@ public class Server2 extends RouterNanoHTTPD {
         //Server server = new Server();
         //ServerRunner.run(Server.class);
 		APIProvider api = c.getApi();
-		api.addNewPerson("Jamie2", "shirakaba2", "jb153392");
-		api.getUsers();
+		Result rs = api.addNewPerson("Jamie2", "shirakaba2", "jb153392");
+//		rs.close();
+		conn.commit();
+		conn.close();
+		System.out.println(api.getUsers());
     }
 }

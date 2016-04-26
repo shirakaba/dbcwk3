@@ -42,6 +42,7 @@ public class API implements APIProvider {
             ResultSet rs = p.executeQuery();
             while(rs.next()){
                 map.put(rs.getString("username"), rs.getString("name"));
+                System.out.println(rs.getString("username") + rs.getString("name"));
             }
             return Result.success(map);
         }catch(SQLException e){
@@ -107,6 +108,7 @@ public class API implements APIProvider {
     		p.setString(3, studentId);
     		
     		 myResult = p.execute();
+    		 System.out.println("reaches execute");
     	}catch(SQLException e){
 			throw new UnsupportedOperationException("exception " + e);
     	}

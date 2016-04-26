@@ -5,6 +5,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.HashMap;
 
@@ -68,10 +69,35 @@ public class API implements APIProvider {
         throw new UnsupportedOperationException("Not supported yet.");
     }
     
-    // to Jamie
+    // to Jamie: gets all people who have liked a particular topic, ordering them alphabetically.
+    // FINISHED but untested as it depends upon getPersonView.
     @Override
     public Result<List<PersonView>> getLikers(long topicId) {
-        throw new UnsupportedOperationException("Not supported yet.");
+    	Long topicIDforStringification = topicId;
+//        final String STMT = "SELECT PersonId FROM LikedTopic WHERE PersonId = ?;";
+        // This gets the PersonIds, but would need to be joined to Person to get their usernames.
+        final String STMT = "SELECT username FROM LikedTopic "
+        		+ "INNER JOIN Person ON PersonId = Person.id "
+        		+ "WHERE TopicId = ? " // replace this '?' with the input topicId
+        		+ "ORDER BY username ASC;";
+        List <PersonView> list = new ArrayList<>();
+        PersonView currentPersonView;
+        
+        try(PreparedStatement p = c.prepareStatement(STMT)){
+    		p.setString(1,  topicIDforStringification.toString());
+            ResultSet rs = p.executeQuery();
+            while(rs.next()){
+            	// May work!
+            	currentPersonView = getPersonView(rs.getString("username")).getValue();
+                list.add(currentPersonView);
+                System.out.println(currentPersonView);
+            }
+            return Result.success(list);
+        }catch(SQLException e){
+            return Result.failure(e.getMessage());
+        }
+    	
+//        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     // to Jamie

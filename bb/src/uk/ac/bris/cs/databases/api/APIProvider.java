@@ -13,6 +13,7 @@ public interface APIProvider {
      * Level 1 - simple views. Every group is expected to implement these.
      */
 
+	// Provisionally done by Phan and Alex
     /**
      * Get a list of all users in the system as a map username -> name.
      * @return A map with one entry per user of the form username -> name
@@ -20,6 +21,7 @@ public interface APIProvider {
      */
     public Result<Map<String, String>> getUsers();
     
+    // to Alex
     /**
      * Get a PersonView for the person with the given username.
      * @param username - the username to search for, cannot be empty.
@@ -28,6 +30,7 @@ public interface APIProvider {
      */
     public Result<PersonView> getPersonView(String username);
          
+    // to Phan, but dependent on Alex populating db.
     /**
      * Get the "main page" containing a list of forums ordered alphabetically
      * by title. Simple version that does not return any topic information.
@@ -35,6 +38,7 @@ public interface APIProvider {
      */
     public Result<List<SimpleForumSummaryView>> getSimpleForums();
     
+    // to Phan
     /**
      * Count the number of posts in a topic (without fetching them all).
      * @param topicId - the topic to look at.
@@ -43,6 +47,7 @@ public interface APIProvider {
      */
     public Result<Integer> countPostsInTopic(long topicId);
     
+    // to Jamie
     /**
      * Get all people who have liked a particular topic, ordered by name
      * alphabetically.
@@ -52,6 +57,7 @@ public interface APIProvider {
      */
     public Result<List<PersonView>> getLikers(long topicId);
     
+    // to Jamie
     /**
      * Get a simplified view of a topic.
      * @param topicId - the topic to get.
@@ -100,6 +106,7 @@ public interface APIProvider {
      */
     public Result createPost(long topicId, String username, String text);
     
+ // Provisionally done by Jamie
     /**
      * Create a new person.
      * @param name - the person's name, cannot be empty.

@@ -71,7 +71,7 @@ public class API implements APIProvider {
     }
 
     // TODO: Alex must implement getPersonView() for this to work.
-    // to Jamie
+    // to Jamie [FINISHED, untested]
     @Override
     public Result<List<PersonView>> getLikers(long topicId) {
         List <PersonView> list = new ArrayList<>();
@@ -99,26 +99,27 @@ public class API implements APIProvider {
         }
     }
 
-    // Design decision for report: the Post entity has no 'number within topic' attribute.
-    // Pros: we don't have to repair that attribute for all Posts if one is deleted.
-    // ... although actually, that function may not exist anyway.
-    // Cons: we have to order by date every time and manually calculate the Post numbers, which
-    // will take longer and longer as the Topic gets bigger and bigger.
-    // to Jamie
+    /* Design decision for report: the Post entity has no 'number within topic' attribute.
+     * Pros: we don't have to repair that attribute for all Posts if one is deleted.
+     * ... although actually, that function may not exist anyway.
+     * Cons: we have to order by date every time and manually calculate the Post numbers, which
+     * will take longer and longer as the Topic gets bigger and bigger. */
+
+    // to Jamie [FINISHED, untested]
     @Override
     public Result<SimpleTopicView> getSimpleTopic(long topicId) {
         List<SimplePostView> simplePostViews = new ArrayList<>();
 
         final String STMT =
                 "SELECT title, " + // topicTitle
-                "username, " + // author (of Post)
+                "`name`, " + // author (of Post)
                 "text, " + // text (of Post)
-                "\"date\" " + // postedAt (int date of Post submission)
+                "`date` " + // postedAt (int date of Post submission)
 
                 "FROM Topic " +
                 "INNER JOIN Post ON Topic.id = Post.TopicId " +
-                "INNER JOIN Person ON Person.id = Post.PersonId "
-                + "WHERE TopicId = ? ORDER BY date ASC;";
+                "INNER JOIN Person ON Person.id = Post.PersonId " +
+                "WHERE TopicId = ? ORDER BY `date` ASC;";
 
         try(PreparedStatement p = c.prepareStatement(STMT)){
             p.setString(1,  String.valueOf(topicId));
@@ -134,13 +135,13 @@ public class API implements APIProvider {
 
                 simplePostViews.add(new SimplePostView(
                         postNumber, // int postNumber
-                        rs.getString("username"), // String author
+                        rs.getString("name"), // String author
                         rs.getString("text"), // String text
                         rs.getInt("date"))); // int postedAt
 
                 System.out.println("Adding SimplePostView. " +
                         "postNumber = " + String.valueOf(postNumber) + "; " +
-                        "author = " + rs.getString("username") + "; " +
+                        "author = " + rs.getString("name") + "; " +
                         "text = " + rs.getString("text") + "; " +
                         "postedAt = " + rs.getInt("date"));
             }
@@ -154,10 +155,90 @@ public class API implements APIProvider {
      * Level 2 - standard difficulty. Most groups should get all of these.
      * They require a little bit more thought than the level 1 API though.
      */
-    
+
+    // To Jamie [FINISHED, untested]
     @Override
     public Result<PostView> getLatestPost(long topicId) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        // gets the latest Post, along with info about who posted it.
+        final String latestPostSTMT =
+                "SELECT " +
+                "`date`, " + // postedAt (int date of Post submission)
+                "`name`, " + // authorName (of Post)
+                "username, " + // authorUserName (of Post)
+                "text " + // text (of Post)
+
+                "FROM Topic " +
+                "INNER JOIN Post ON Topic.id = Post.TopicId " +
+                "INNER JOIN Person ON Person.id = Post.PersonId " +
+                "WHERE TopicId = ? " +
+                "ORDER BY `date`, Post.id DESC " + // orders first by date, then by recentness of id in case of same-day post
+                "LIMIT 1;";
+
+        // gets the Forum id for the Topic in question.
+        final String forumIdSTMT =
+                "SELECT Forum.id AS forumId " + // forumId
+                "FROM Topic " +
+                "INNER JOIN Forum ON Forum.id = Topic.ForumId " +
+                "WHERE TopicId = ? " +
+                "LIMIT 1;";
+
+        // counts the number of likes for the Topic in question.
+        final String likesSTMT =
+                "SELECT count(TopicId) " +
+                "FROM LikedTopic " +
+                "WHERE TopicId = ?;";
+
+        // determines the number of the latest Post by counting all Posts in a Topic.
+        final String postNumberSTMT =
+                "SELECT count(Post.id) AS postNumber " +
+                "FROM POST " +
+                "INNER JOIN Topic ON Topic.id = Post.TopicId " +
+                "WHERE TopicId = ?;";
+
+        // tries communicating with the database.
+        try(PreparedStatement latestPostP = c.prepareStatement(latestPostSTMT);
+            PreparedStatement forumIdP = c.prepareStatement(forumIdSTMT);
+            PreparedStatement likesP = c.prepareStatement(likesSTMT);
+            PreparedStatement postNumberP = c.prepareStatement(postNumberSTMT)){
+
+            // sets all the '?' to be the topicId.
+            latestPostP.setString(1, String.valueOf(topicId));
+            forumIdP.setString(1, String.valueOf(topicId));
+            likesP.setString(1, String.valueOf(topicId));
+            postNumberP.setString(1, String.valueOf(topicId));
+
+            // catches all the ResultSets of each executed query.
+            ResultSet latestPostRS = latestPostP.executeQuery(),
+                      forumIdRS = forumIdP.executeQuery(),
+                      likesRS = likesP.executeQuery(),
+                      postNumberRS = postNumberP.executeQuery();
+
+            // gets the ints or Strings out of the ResultSets.
+            int forumId = forumIdRS.getInt("forumId");
+            int postNumber = postNumberRS.getInt("postNumber");
+            String authorName = latestPostRS.getString("name");
+            String authorUserName = latestPostRS.getString("username");
+            String text = latestPostRS.getString("text");
+            int postedAt = latestPostRS.getInt("date");
+            int likes = likesRS.getInt("TopicId");
+
+            // just for debug.
+            System.out.println(String.format("Getting LatestPost...\n" +
+                    "forumId = %d; \n" +
+                    "topicId = %d; \n" +
+                    "postNumber = %d; \n" +
+                    "authorName = %s; \n" +
+                    "authorUserName = %s; \n" +
+                    "text = %s; \n" +
+                    "postedAt = %d; \n" +
+                    "likes = %d.",
+                    forumId, topicId, postNumber, authorName, authorUserName, text, postedAt, likes
+            ));
+
+            return Result.success(new PostView(forumId, topicId, postNumber, authorName, authorUserName, text, postedAt, likes));
+        } catch(SQLException e){
+            return Result.failure(e.getMessage());
+        }
     }
 
     @Override
@@ -175,31 +256,24 @@ public class API implements APIProvider {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
-    /* Implemented by Jamie */
+    // to Jamie [FINISHED, untested]
     @Override
     public Result addNewPerson(String name, String username, String studentId) {
-        
         final String STMT = "INSERT INTO Person (username, name, studentId) VALUES (?, ?, ?)";
-        boolean myResult;
-        
         
         try(PreparedStatement p = c.prepareStatement(STMT)){
             p.setString(1,  username);
             p.setString(2, name);
             p.setString(3, studentId);
             
-            myResult = p.execute();
-            System.out.println("reaches execute");
+            p.execute();
             c.commit(); // tells the db driver to end the transaction.
         }catch(SQLException e){
-            throw new UnsupportedOperationException("exception " + e);
+//          throw new UnsupportedOperationException("exception " + e); // this was originally here, but prob. better to remove.
+            return Result.failure(e.getMessage());
         }
-
-
-//      INSERT INTO Person (username, name, studentId) VALUES ("shirakaba", "Jamie", "jb15339");
         
         return Result.success();
-        //Throw new UnsupportedOperationException("Not supported yet.");
     }
 
     @Override

@@ -99,6 +99,11 @@ public class API implements APIProvider {
         }
     }
 
+    // Design decision for report: the Post entity has no 'number within topic' attribute.
+    // Pros: we don't have to repair that attribute for all Posts if one is deleted.
+    // ... although actually, that function may not exist anyway.
+    // Cons: we have to order by date every time and manually calculate the Post numbers, which
+    // will take longer and longer as the Topic gets bigger and bigger.
     // to Jamie
     @Override
     public Result<SimpleTopicView> getSimpleTopic(long topicId) {

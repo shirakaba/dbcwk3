@@ -104,42 +104,42 @@ public class API implements APIProvider {
     // to Jamie
     @Override
     public Result<SimpleTopicView> getSimpleTopic(long topicId) {
-        Long topicIDforStringification = topicId;
-        String topicTitle;
-
-//      List <PersonView> personViews = new ArrayList<>();
         List<SimplePostView> simplePostViews = new ArrayList<>();
 
-        // title = topicTitle ; username = postAuthor ; text = postText ; date = postedAt
-        // TODO: find a way to count posts
-        final String STMT = "SELECT title, username, text, \"date\" FROM Topic " +
+        final String STMT =
+                "SELECT title, " + // topicTitle
+                "username, " + // author (of Post)
+                "text, " + // text (of Post)
+                "\"date\" " + // postedAt (int date of Post submission)
+
+                "FROM Topic " +
                 "INNER JOIN Post ON Topic.id = Post.TopicId " +
                 "INNER JOIN Person ON Person.id = Post.PersonId "
-                + "WHERE TopicId = ? " +
-                "ORDER BY date ASC;";
+                + "WHERE TopicId = ? ORDER BY date ASC;";
 
         try(PreparedStatement p = c.prepareStatement(STMT)){
-            p.setString(1,  topicIDforStringification.toString());
+            p.setString(1,  String.valueOf(topicId));
             ResultSet rs = p.executeQuery();
 
-            topicTitle = rs.getString("title");
+            String topicTitle = rs.getString("title");
             System.out.println(String.format("Identified %s as the topic's title.", topicTitle));
 
+            // TODO: assess whether this method of counting posts is the best way to do it.
+            int postNumber = 0;
             while(rs.next()){
-                // assuming 'author' to be the username.
-                // int postNumber, String author, String text, int postedAt
-                simplePostViews.add(new SimplePostView());
+                postNumber++;
+
+                simplePostViews.add(new SimplePostView(
+                        postNumber, // int postNumber
+                        rs.getString("username"), // String author
+                        rs.getString("text"), // String text
+                        rs.getInt("date"))); // int postedAt
 //              System.out.println(simplePostView);
             }
-            return Result.success();
-        }catch(SQLException e){
+            return Result.success(new SimpleTopicView(topicId, topicTitle, simplePostViews));
+        } catch(SQLException e){
             return Result.failure(e.getMessage());
         }
-
-        SimpleTopicView simpleTopicView;
-        simpleTopicView = new SimpleTopicView(topicId, topicTitle, simplePostViews);
-
-        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     /* 

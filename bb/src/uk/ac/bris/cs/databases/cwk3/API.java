@@ -134,7 +134,12 @@ public class API implements APIProvider {
                         rs.getString("username"), // String author
                         rs.getString("text"), // String text
                         rs.getInt("date"))); // int postedAt
-//              System.out.println(simplePostView);
+
+                System.out.println("Adding SimplePostView. " +
+                        "postNumber = " + String.valueOf(postNumber) + "; " +
+                        "author = " + rs.getString("username") + "; " +
+                        "text = " + rs.getString("text") + "; " +
+                        "postedAt = " + rs.getInt("date"));
             }
             return Result.success(new SimpleTopicView(topicId, topicTitle, simplePostViews));
         } catch(SQLException e){

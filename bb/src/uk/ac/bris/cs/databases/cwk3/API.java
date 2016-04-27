@@ -69,36 +69,34 @@ public class API implements APIProvider {
     public Result<Integer> countPostsInTopic(long topicId) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
-    
-    // to Jamie: gets all people who have liked a particular topic, ordering them alphabetically.
-    // FINISHED but untested as it depends upon getPersonView.
+
+    // TODO: Alex must implement getPersonView() for this to work.
+    // to Jamie
     @Override
     public Result<List<PersonView>> getLikers(long topicId) {
-        Long topicIDforStringification = topicId;
-//        final String STMT = "SELECT PersonId FROM LikedTopic WHERE PersonId = ?;";
-        // This gets the PersonIds, but would need to be joined to Person to get their usernames.
+        List <PersonView> list = new ArrayList<>();
+
         final String STMT = "SELECT username FROM LikedTopic "
                 + "INNER JOIN Person ON PersonId = Person.id "
-                + "WHERE TopicId = ? " // replace this '?' with the input topicId
-                + "ORDER BY username ASC;";
-        List <PersonView> list = new ArrayList<>();
-        PersonView currentPersonView;
+                + "WHERE TopicId = ? "
+                + "ORDER BY username ASC;"; // ordering is required.
         
         try(PreparedStatement p = c.prepareStatement(STMT)){
-            p.setString(1,  topicIDforStringification.toString());
+            p.setString(1,  String.valueOf(topicId));
             ResultSet rs = p.executeQuery();
+
             while(rs.next()){
-                // May work!
-                currentPersonView = getPersonView(rs.getString("username")).getValue();
-                list.add(currentPersonView);
-                System.out.println(currentPersonView);
+                String username = rs.getString("username");
+                // getValue() returns the value rather than just info about the result.
+                list.add(getPersonView(username).getValue());
+
+                System.out.println("Adding PersonView to List<PersonView>. " +
+                        "username = " + username);
             }
             return Result.success(list);
         }catch(SQLException e){
             return Result.failure(e.getMessage());
         }
-        
-//        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     // to Jamie

@@ -270,6 +270,8 @@ public class API implements APIProvider {
             c.commit(); // tells the db driver to end the transaction.
         }catch(SQLException e){
 //          throw new UnsupportedOperationException("exception " + e); // this was originally here, but prob. better to remove.
+            // c.rollback(); // TODO: "Whenever you have done a write but not yet committed, make all exception handlers do an explicit rollback()."
+                            // Assess whether this is the right scenario and place to use this. This would also need to be wrapped in a try-catch.
             return Result.failure(e.getMessage());
         }
         

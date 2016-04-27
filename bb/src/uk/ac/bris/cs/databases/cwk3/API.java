@@ -170,12 +170,14 @@ public class API implements APIProvider {
             p.setString(2, name);
             p.setString(3, studentId);
             
-             myResult = p.execute();
-             System.out.println("reaches execute");
+            myResult = p.execute();
+            System.out.println("reaches execute");
+            c.commit(); // tells the db driver to end the transaction.
         }catch(SQLException e){
             throw new UnsupportedOperationException("exception " + e);
         }
-        
+
+
 //      INSERT INTO Person (username, name, studentId) VALUES ("shirakaba", "Jamie", "jb15339");
         
         return Result.success();

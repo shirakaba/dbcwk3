@@ -104,30 +104,40 @@ public class API implements APIProvider {
     // to Jamie
     @Override
     public Result<SimpleTopicView> getSimpleTopic(long topicId) {
-//      Long topicIDforStringification = topicId;
-//      String title;
-//      List<SimplePostView> posts = new ArrayList<>();
-//      SimpleTopicView simpleTopicView = new SimpleTopicView(topicId, title, posts);
-//
-//
-//
-//      final String STMT = "SELECT title FROM Topic "
-//              + "WHERE TopicId = ?;";
-//      List <PersonView> list = new ArrayList<>();
-//      SimplePostView simplePostView;
-//
-//      try(PreparedStatement p = c.prepareStatement(STMT)){
-//          p.setString(1,  topicIDforStringification.toString());
-//          ResultSet rs = p.executeQuery();
-//          while(rs.next()){
-//              simplePostView = new SimplePostView(0, STMT, STMT, 0); // note to self: fill in this constructor using SimplePostView.java
-//              posts.add(simplePostView);
+        Long topicIDforStringification = topicId;
+        String topicTitle;
+
+//      List <PersonView> personViews = new ArrayList<>();
+        List<SimplePostView> simplePostViews = new ArrayList<>();
+
+        // title = topicTitle ; username = postAuthor ; text = postText ; date = postedAt
+        // TODO: find a way to count posts
+        final String STMT = "SELECT title, username, text, \"date\" FROM Topic " +
+                "INNER JOIN Post ON Topic.id = Post.TopicId " +
+                "INNER JOIN Person ON Person.id = Post.PersonId "
+                + "WHERE TopicId = ? " +
+                "ORDER BY date ASC;";
+
+        try(PreparedStatement p = c.prepareStatement(STMT)){
+            p.setString(1,  topicIDforStringification.toString());
+            ResultSet rs = p.executeQuery();
+
+            topicTitle = rs.getString("title");
+            System.out.println(String.format("Identified %s as the topic's title.", topicTitle));
+
+            while(rs.next()){
+                // assuming 'author' to be the username.
+                // int postNumber, String author, String text, int postedAt
+                simplePostViews.add(new SimplePostView());
 //              System.out.println(simplePostView);
-//          }
-//          return Result.success();
-//      }catch(SQLException e){
-//          return Result.failure(e.getMessage());
-//      }
+            }
+            return Result.success();
+        }catch(SQLException e){
+            return Result.failure(e.getMessage());
+        }
+
+        SimpleTopicView simpleTopicView;
+        simpleTopicView = new SimpleTopicView(topicId, topicTitle, simplePostViews);
 
         throw new UnsupportedOperationException("Not supported yet.");
     }

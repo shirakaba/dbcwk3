@@ -6,7 +6,7 @@
     </path>
     <target name="compile">
         <mkdir dir="target"/>
-        <javac srcdir="src" destdir="target">
+        <javac srcdir="src" destdir="target" includeantruntime="false">
             <classpath refid="libs" />
         </javac>
     </target>

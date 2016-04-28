@@ -50,7 +50,7 @@ public class API implements APIProvider {
             }
             return Result.success(map);
         }catch(SQLException e){
-            return Result.failure(e.getMessage());
+            return Result.fatal(e.getMessage());
         }
     }
     
@@ -75,7 +75,7 @@ public class API implements APIProvider {
             return Result.success(pv);
         }catch(SQLException e){
 	    e.printStackTrace();
-            return Result.failure(e.getMessage());
+            return Result.fatal(e.getMessage());
         }
     }
 
@@ -91,7 +91,7 @@ public class API implements APIProvider {
             }
             return Result.success(list);
         }catch(SQLException e){
-            return Result.failure(e.getMessage());
+            return Result.fatal(e.getMessage());
         }
     }
 
@@ -108,7 +108,7 @@ public class API implements APIProvider {
             }
             return Result.success(count);
         }catch(SQLException e){
-            return Result.failure(e.getMessage());
+            return Result.fatal(e.getMessage());
         }
         
     }
@@ -138,7 +138,7 @@ public class API implements APIProvider {
             }
             return Result.success(list);
         }catch(SQLException e){
-            return Result.failure(e.getMessage());
+            return Result.fatal(e.getMessage());
         }
     }
 
@@ -190,7 +190,7 @@ public class API implements APIProvider {
             }
             return Result.success(new SimpleTopicView(topicId, topicTitle, simplePostViews));
         } catch(SQLException e){
-            return Result.failure(e.getMessage());
+            return Result.fatal(e.getMessage());
         }
     }
 
@@ -281,7 +281,7 @@ public class API implements APIProvider {
 
             return Result.success(new PostView(forumId, topicId, postNumber, authorName, authorUserName, text, postedAt, likes));
         } catch(SQLException e){
-            return Result.failure(e.getMessage());
+            return Result.fatal(e.getMessage());
         }
     }
 
@@ -314,7 +314,7 @@ public class API implements APIProvider {
             return Result.success(ll);
         }catch(SQLException e){
 	    e.printStackTrace();
-            return Result.failure(e.getMessage());
+            return Result.fatal(e.getMessage());
         }	
     }
 
@@ -349,7 +349,7 @@ public class API implements APIProvider {
             p1.execute();
             c.commit(); 
         }catch(SQLException e){
-            return Result.failure(e.getMessage());
+            return Result.fatal(e.getMessage());
         }
         return Result.success();
     }
@@ -370,7 +370,7 @@ public class API implements APIProvider {
 //          throw new UnsupportedOperationException("exception " + e); // this was originally here, but prob. better to remove.
             // c.rollback(); // TODO: "Whenever you have done a write but not yet committed, make all exception handlers do an explicit rollback()."
                             // Assess whether this is the right scenario and place to use this. This would also need to be wrapped in a try-catch.
-            return Result.failure(e.getMessage());
+            return Result.fatal(e.getMessage());
         }
         
         return Result.success();

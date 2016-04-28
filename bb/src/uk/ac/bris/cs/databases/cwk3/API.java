@@ -188,7 +188,7 @@ public class API implements APIProvider {
                 "FROM Topic " +
                 "INNER JOIN Post ON Topic.id = Post.TopicId " +
                 "INNER JOIN Person ON Person.id = Post.PersonId " +
-                "WHERE TopicId = ? " +
+                "WHERE Post.TopicId = ? " +
                 "ORDER BY `date`, Post.id DESC " + // orders first by date, then by recentness of id in case of same-day post
                 "LIMIT 1;";
 
@@ -197,12 +197,12 @@ public class API implements APIProvider {
                 "SELECT Forum.id AS forumId " + // forumId
                 "FROM Topic " +
                 "INNER JOIN Forum ON Forum.id = Topic.ForumId " +
-                "WHERE TopicId = ? " +
+                "WHERE Topic.id = ? " +
                 "LIMIT 1;";
 
         // counts the number of likes for the Topic in question.
         final String likesSTMT =
-                "SELECT count(TopicId) " +
+                "SELECT count(TopicId) as c " +
                 "FROM LikedTopic " +
                 "WHERE TopicId = ?;";
 
@@ -211,13 +211,13 @@ public class API implements APIProvider {
                 "SELECT count(Post.id) AS postNumber " +
                 "FROM POST " +
                 "INNER JOIN Topic ON Topic.id = Post.TopicId " +
-                "WHERE TopicId = ?;";
+                "WHERE Post.TopicId = ?;";
 
         // tries communicating with the database.
         try(PreparedStatement latestPostP = c.prepareStatement(latestPostSTMT);
             PreparedStatement forumIdP = c.prepareStatement(forumIdSTMT);
             PreparedStatement likesP = c.prepareStatement(likesSTMT);
-            PreparedStatement postNumberP = c.prepareStatement(postNumberSTMT)){
+            PreparedStatement postNumberP = c.prepareStatement(postNumberSTMT)) {
 
             // sets all the '?' to be the topicId.
             latestPostP.setString(1, String.valueOf(topicId));
@@ -231,6 +231,7 @@ public class API implements APIProvider {
                       likesRS = likesP.executeQuery(),
                       postNumberRS = postNumberP.executeQuery();
 
+
             // gets the ints or Strings out of the ResultSets.
             int forumId = forumIdRS.getInt("forumId");
             int postNumber = postNumberRS.getInt("postNumber");
@@ -238,9 +239,9 @@ public class API implements APIProvider {
             String authorUserName = latestPostRS.getString("username");
             String text = latestPostRS.getString("text");
             int postedAt = latestPostRS.getInt("date");
-            int likes = likesRS.getInt("TopicId");
+            int likes = likesRS.getInt("c");
 
-            // just for debug.
+            // just for debug.;
             System.out.println(String.format("Getting LatestPost...\n" +
                     "forumId = %d; \n" +
                     "topicId = %d; \n" +

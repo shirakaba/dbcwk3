@@ -386,7 +386,12 @@ public class API implements APIProvider {
     /* Design decision: not limiting the number of posts of a topic to fetch.
      * Also: displaying oldest post of topic first (ASC). */
 
-    // To Jamie
+    // Order of expense:
+    // Lots of queries more expensive than one massive one due to communication ping
+    // if there's an index on the id (ie. WHERE ____  = 1), then it's a binary search and is fast (TABLE SEARCH).
+    // If there's no unique constraint, will have to check every single entry in the table (TABLE SCAN: once through the whole table).
+
+    // To Jamie [FINISHED]
     @Override
     public Result<TopicView> getTopic(long topicId, int page) {
         List<PostView> posts = new ArrayList<>();
@@ -402,7 +407,6 @@ public class API implements APIProvider {
                 "INNER JOIN " +
                 "WHERE Topic.id = ? " +
                 "LIMIT 1;";
-
         // SELECT Forum.id AS forumId, Forum.title AS forumName, Topic.title AS title FROM Topic INNER JOIN Forum ON Forum.id = Topic.ForumId INNER JOIN Post ON Post.TopicId = Topic.id WHERE Topic.id = 1 LIMIT 1;
 
         // we need all the likes for each post
@@ -419,7 +423,6 @@ public class API implements APIProvider {
                 "WHERE TopicId = ? " +
                 "GROUP BY PostId" +
                 "ORDER BY `date`, Post.id ASC;"; // TODO: note that I don't know whether Post.id runs in an opposite order to date.
-
         // SELECT count(PostId) AS likes, text, name, username  FROM LikedPost JOIN Post ON PostId = Post.id JOIN Topic ON Topic.id = Post.TopicId JOIN Person ON Post.PersonId = Person.id WHERE TopicId = 1 GROUP BY PostId ORDER BY date ASC;
 
         // tries communicating with the database.
@@ -437,13 +440,8 @@ public class API implements APIProvider {
             long forumId = forumIdRS.getLong("forumId");
             String forumName = forumIdRS.getString("forumName");
             String title = forumIdRS.getString("title");
-
-            // Order of expense:
-            // Lots of queries more expensive than one massive one due to communication ping
-            // if there's an index on the id (ie. WHERE ____  = 1), then it's a binary search and is fast (TABLE SEARCH).
-            // If there's no unique constraint, will have to check every single entry in the table (TABLE SCAN: once through the whole table).
-
             int postNumber = 0;
+
             while(ascendingPostsOfTopicRS.next()){
                 postNumber++;
 
@@ -459,7 +457,7 @@ public class API implements APIProvider {
                         )
                 );
 
-//                System.out.println("Adding PostView. " +
+//                System.out.println("Adding PostView during getTopic()... " +
 //                        "postNumber = " + String.valueOf(postNumber) + "; " +
 //                        "author = " + rs.getString("name") + "; " +
 //                        "text = " + rs.getString("text") + "; " +

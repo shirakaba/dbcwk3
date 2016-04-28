@@ -107,6 +107,7 @@ public class Server2 extends RouterNanoHTTPD {
         if (!rs.isSuccess()) {
             System.out.println(rs.getMessage());
         }
+//		rs = api.createPost(6, "username2", "Gladiators is quite possibly... the greatest film every.");
 
 //		rs.close();
 		conn.close();

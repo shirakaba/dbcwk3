@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.Date;
 
 import uk.ac.bris.cs.databases.api.APIProvider;
 import uk.ac.bris.cs.databases.api.AdvancedForumSummaryView;
@@ -56,10 +57,12 @@ public class API implements APIProvider {
     // implemented by the Alex
     @Override
     public Result<PersonView> getPersonView(String username) {
-        final String STMT = "SELECT * FROM Person WHERE username = '"+username+"';";
+        final String STMT = "SELECT * FROM Person WHERE username = ?;";
         PersonView pv;
 
         try(PreparedStatement p = c.prepareStatement(STMT)){
+            p.setString(1,  username);
+
             ResultSet rs = p.executeQuery();
 
             pv = new PersonView(rs.getString("name"),
@@ -79,13 +82,35 @@ public class API implements APIProvider {
     // to Phan, but dependent on Alex populating db. (db has been populated)
     @Override
     public Result<List<SimpleForumSummaryView>> getSimpleForums() {
-        throw new UnsupportedOperationException("Not supported yet.");
+        final String STMT = "SELECT id FROM Forum ORDER BY title ACS";
+        List <SimpleForumSummaryView> list = new ArrayList <>();
+        try(PreparedStatement p = c.prepareStatement(STMT)){
+            ResultSet rs = p.executeQuery();
+            while(rs.next()){
+                SimpleForumSummaryView fv = new SimpleForumSummaryView(rs.getLong("id"), rs.getString("title"));
+            }
+            return Result.success(list);
+        }catch(SQLException e){
+            return Result.failure(e.getMessage());
+        }
     }
 
     // to Phan
     @Override
     public Result<Integer> countPostsInTopic(long topicId) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        final String STMT = "SELECT count(*) AS count FROM Topic" + " WHERE ForumId = ?";
+        int count = 0;
+        try(PreparedStatement p = c.prepareStatement(STMT)){
+            ResultSet rs = p.executeQuery();
+            while(rs.next()){
+                count = rs.getInt("count");
+                System.out.println(count);
+            }
+            return Result.success(count);
+        }catch(SQLException e){
+            return Result.failure(e.getMessage());
+        }
+        
     }
 
     // TODO: Alex must implement getPersonView() for this to work.(getPersonView done)
@@ -298,10 +323,35 @@ public class API implements APIProvider {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
-	//TO ALEX
+	//TO ALEX - DONE
     @Override
     public Result createPost(long topicId, String username, String text) {
-        throw new UnsupportedOperationException("Not supported yet.");
+
+	long dateInSecs = new Date().getTime() / 1000;
+
+	final String getPersonIdSTMT = "SELECT id FROM Person WHERE username = ?";
+	long personId;
+        try(PreparedStatement p = c.prepareStatement(getPersonIdSTMT)){
+            p.setString(1, username);
+            ResultSet rs = p.executeQuery();
+	    personId = rs.getLong(1);
+
+
+            final String STMT = "INSERT INTO Post (date,text,PersonId,TopicId) VALUES (?, ?, ?, ?);";
+
+            PreparedStatement p1 = c.prepareStatement(STMT);
+
+            p1.setLong(1, dateInSecs);
+            p1.setString(2, text);
+            p1.setLong(3, personId);
+	    p1.setLong(4, topicId);
+            
+            p1.execute();
+            c.commit(); 
+        }catch(SQLException e){
+            return Result.failure(e.getMessage());
+        }
+        return Result.success();
     }
 
     // to Jamie [FINISHED, untested]

@@ -227,7 +227,7 @@ public class API implements APIProvider {
 
         // counts the number of likes for the Topic in question.
         final String likesSTMT =
-                "SELECT count(TopicId) as c " +
+                "SELECT count(TopicId) as likes " +
                 "FROM LikedTopic " +
                 "WHERE TopicId = ?;";
 
@@ -264,7 +264,7 @@ public class API implements APIProvider {
             String authorUserName = latestPostRS.getString("username");
             String text = latestPostRS.getString("text");
             int postedAt = latestPostRS.getInt("date");
-            int likes = likesRS.getInt("c");
+            int likes = likesRS.getInt("likes");
 
             // just for debug.;
             System.out.println(String.format("Getting LatestPost...\n" +
@@ -383,65 +383,93 @@ public class API implements APIProvider {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
-    /* Design decision: not limiting the number of posts of a topic to fetch. */
+    /* Design decision: not limiting the number of posts of a topic to fetch.
+     * Also: displaying oldest post of topic first (ASC). */
 
     // To Jamie
     @Override
     public Result<TopicView> getTopic(long topicId, int page) {
-        final String forumIdSTMT =
-                "SELECT Forum.id, " +
-                        "Forum.name " + // forumId
-                        "FROM Topic " +
-                        "INNER JOIN Forum ON Forum.id = Topic.ForumId " +
-                        "WHERE Topic.id = ? " +
-                        "LIMIT 1;";
+        List<PostView> posts = new ArrayList<>();
 
-        final String postsOfTopicSTMT =
+        final String topicInfoSTMT =
+//                "SELECT count(Post.id) AS postNumber, " + // postNumber not actually needed, I think.
                 "SELECT " +
-                "Topic.title, " + // authorUserName (of Post)
-                "text " + // text (of Post)
+                "Forum.id AS forumId, " +  // forumId
+                "Forum.title AS forumName, " + // forumName
+                "Topic.title AS title " + // title
+                "FROM Topic " +
+                "INNER JOIN Forum ON Forum.id = Topic.ForumId " +
+                "INNER JOIN " +
+                "WHERE Topic.id = ? " +
+                "LIMIT 1;";
 
-                "FROM POST " +
-                "INNER JOIN Topic ON Topic.id = Post.TopicId " +
-                "WHERE Post.TopicId = ? " +
-                ";";
+        // SELECT Forum.id AS forumId, Forum.title AS forumName, Topic.title AS title FROM Topic INNER JOIN Forum ON Forum.id = Topic.ForumId INNER JOIN Post ON Post.TopicId = Topic.id WHERE Topic.id = 1 LIMIT 1;
+
+        // we need all the likes for each post
+        final String ascendingPostsOfTopicSTMT =
+                "SELECT count(PostId) AS likes," + // likes
+                "date, " + // date
+                "text, " + // text (of Post)
+                "name, " + // authorName
+                "username " + // authorUserName
+                "FROM LikedPost " +
+                "JOIN Post ON PostId = Post.id " +
+                "JOIN Topic ON Topic.id = Post.TopicId " +
+                "JOIN Person ON Post.PersonId = Person.id " +
+                "WHERE TopicId = ? " +
+                "GROUP BY PostId" +
+                "ORDER BY `date`, Post.id ASC;"; // TODO: note that I don't know whether Post.id runs in an opposite order to date.
+
+        // SELECT count(PostId) AS likes, text, name, username  FROM LikedPost JOIN Post ON PostId = Post.id JOIN Topic ON Topic.id = Post.TopicId JOIN Person ON Post.PersonId = Person.id WHERE TopicId = 1 GROUP BY PostId ORDER BY date ASC;
 
         // tries communicating with the database.
-        try(PreparedStatement postsOfTopicP = c.prepareStatement(postsOfTopicSTMT);
-            PreparedStatement forumIdP = c.prepareStatement(forumIdSTMT)) {
+        try(PreparedStatement ascendingPostsOfTopicP = c.prepareStatement(ascendingPostsOfTopicSTMT);
+            PreparedStatement forumIdP = c.prepareStatement(topicInfoSTMT)) {
             // sets all the '?' to be the topicId.
-            postsOfTopicP.setString(1, String.valueOf(topicId));
             forumIdP.setString(1, String.valueOf(topicId));
+            ascendingPostsOfTopicP.setString(1, String.valueOf(ascendingPostsOfTopicSTMT));
 
             // catches all the ResultSets of each executed query.
-            ResultSet postsOfTopicRS = postsOfTopicP.executeQuery();
             ResultSet forumIdRS = forumIdP.executeQuery();
+            ResultSet ascendingPostsOfTopicRS = ascendingPostsOfTopicP.executeQuery();
 
             // gets the ints or Strings out of the ResultSets.
-            String forumName = forumIdRS.getString("Forum.name");
-            String title = postsOfTopicRS.getString("Topic.title");
-            long forumId = forumIdRS.getLong("Forum.id");
+            long forumId = forumIdRS.getLong("forumId");
+            String forumName = forumIdRS.getString("forumName");
+            String title = forumIdRS.getString("title");
 
-            // just for debug.;
-//            System.out.println(String.format("Getting LatestPost...\n" +
-//                            "forumId = %d; \n" +
-//                            "topicId = %d; \n" +
-//                            "postNumber = %d; \n" +
-//                            "authorName = %s; \n" +
-//                            "authorUserName = %s; \n" +
-//                            "text = %s; \n" +
-//                            "postedAt = %d; \n" +
-//                            "likes = %d.",
-//                    forumId, topicId, postNumber, authorName, authorUserName, text, postedAt, likes
-//            ));
+            // Order of expense:
+            // Lots of queries more expensive than one massive one due to communication ping
+            // if there's an index on the id (ie. WHERE ____  = 1), then it's a binary search and is fast (TABLE SEARCH).
+            // If there's no unique constraint, will have to check every single entry in the table (TABLE SCAN: once through the whole table).
 
-                    throw new UnsupportedOperationException("Not supported yet.");
-//            return Result.success(new TopicView(forumId, topicId, forumName, title, posts, page));
+            int postNumber = 0;
+            while(ascendingPostsOfTopicRS.next()){
+                postNumber++;
+
+                posts.add(new PostView(
+                        forumId,
+                        topicId,
+                        postNumber, // int postNumber
+                        ascendingPostsOfTopicRS.getString("name"), // String authorName
+                        ascendingPostsOfTopicRS.getString("username"), // String authorUserName
+                        ascendingPostsOfTopicRS.getString("text"), // String text
+                        ascendingPostsOfTopicRS.getInt("date"),
+                        ascendingPostsOfTopicRS.getInt("likes") // likes of Post
+                        )
+                );
+
+//                System.out.println("Adding PostView. " +
+//                        "postNumber = " + String.valueOf(postNumber) + "; " +
+//                        "author = " + rs.getString("name") + "; " +
+//                        "text = " + rs.getString("text") + "; " +
+//                        "postedAt = " + rs.getInt("date"));
+            }
+
+            return Result.success(new TopicView(forumId, topicId, forumName, title, posts, page));
         } catch(SQLException e){
             return Result.failure(e.getMessage());
         }
-
-//        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     //TO ALEX

@@ -329,7 +329,7 @@ public class API implements APIProvider {
 
 	long dateInSecs = new Date().getTime() / 1000;
 
-	final String getPersonIdSTMT = "SELECT id FROM Person WHERE username = ?";
+	final String getPersonIdSTMT = "SELECT id FROM Person WHERE username = ?;";
 	long personId;
         try(PreparedStatement p = c.prepareStatement(getPersonIdSTMT)){
             p.setString(1, username);
@@ -386,10 +386,37 @@ public class API implements APIProvider {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
-    //TO ALEX
+    //TO ALEX - DONE
     @Override
     public Result likeTopic(String username, long topicId, boolean like) {
-        throw new UnsupportedOperationException("Not supported yet.");
+
+	final String getPersonIdSTMT = "SELECT id FROM Person WHERE username = ?;";
+	long personId;
+        try(PreparedStatement p = c.prepareStatement(getPersonIdSTMT)){
+            p.setString(1, username);
+            ResultSet rs = p.executeQuery();
+	    personId = rs.getLong(1);
+	    
+            final String STMT;
+	    if(like){
+	    	STMT = "INSERT INTO LikedTopic (TopicId, PersonId) VALUES (?, ?);";
+	    }else{
+		STMT = "DELETE FROM LikedTopic WHERE TopicId = ? AND PersonId = ?;";
+	    }
+
+            PreparedStatement p1 = c.prepareStatement(STMT);
+
+            p1.setLong(1, topicId);
+	    p1.setLong(2, personId);
+            System.out.println(p1);
+            p1.execute();
+            c.commit(); 
+        }catch(SQLException e){
+	    e.printStackTrace();
+            return Result.failure(e.getMessage());
+        }
+        return Result.success();
+	
     }
 
     @Override

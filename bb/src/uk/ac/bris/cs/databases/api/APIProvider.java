@@ -142,7 +142,7 @@ public interface APIProvider {
      */
     public Result<TopicView> getTopic(long topicId, int page);
     
-	//TO ALEX
+	//TO ALEX - DONE
     /**
      * Like or unlike a topic. A topic is either liked or not, when calling this
      * twice in a row with the same parameters, the second call is a no-op (this

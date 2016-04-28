@@ -21,6 +21,7 @@ import uk.ac.bris.cs.databases.api.PersonView;
 import uk.ac.bris.cs.databases.api.SimpleForumSummaryView;
 import uk.ac.bris.cs.databases.api.SimplePostView;
 import uk.ac.bris.cs.databases.api.SimpleTopicView;
+import uk.ac.bris.cs.databases.api.SimpleTopicSummaryView;
 import uk.ac.bris.cs.databases.api.TopicView;
 
 /**
@@ -258,10 +259,37 @@ public class API implements APIProvider {
         }
     }
 
-	//TO ALEX
+	//TO ALEX - DONE
     @Override
     public Result<List<ForumSummaryView>> getForums() {
-        throw new UnsupportedOperationException("Not supported yet.");
+        final String STMT = "SELECT * FROM Forum;";
+        List<ForumSummaryView> ll = new ArrayList<>();
+	SimpleTopicSummaryView stsv;
+	
+        try(PreparedStatement p = c.prepareStatement(STMT)){
+            ResultSet rs = p.executeQuery();
+	    String latestTopicIdSTMT;
+            while(rs.next()){
+		long currForumId = rs.getInt(1);
+		latestTopicIdSTMT = "SELECT Topic.id, Topic.title From Topic" +
+				    " JOIN Post ON Post.TopicId = Topic.id " +
+				    " WHERE ForumId = " + currForumId + " ORDER BY date LIMIT 1;";
+
+		PreparedStatement p1 = c.prepareStatement(latestTopicIdSTMT);
+		ResultSet rs1 = p1.executeQuery();
+		stsv = new SimpleTopicSummaryView(rs1.getLong(1), currForumId, rs1.getString("title"));
+		/*System.out.println(rs.getLong(1) + " " + rs.getString("title") + " " + stsv.getTitle());*/
+						   	    
+		ForumSummaryView fsv = new ForumSummaryView(rs.getLong(1),
+							    rs.getString("title"),
+						   	    stsv);
+                ll.add(fsv);
+            }
+            return Result.success(ll);
+        }catch(SQLException e){
+	    e.printStackTrace();
+            return Result.failure(e.getMessage());
+        }	
     }
 
     @Override

@@ -92,8 +92,8 @@ public class Server2 extends RouterNanoHTTPD {
         //ServerRunner.run(Server.class);
 		APIProvider api = c.getApi();
 		Result rs;
-		rs = api.getPersonView("shirakaba2");
-
+		rs = api.getForums();
+		
 		rs = api.addNewPerson("Jamie2", "shirakaba2", "jb153392");
 
 //		rs.close();

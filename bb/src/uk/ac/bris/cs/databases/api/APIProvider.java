@@ -81,7 +81,7 @@ public interface APIProvider {
      */
     public Result<PostView> getLatestPost(long topicId);
     
-	//TO ALEX
+	//TO ALEX - DONE
     /** 
      * Get the "main page" containing a list of forums ordered alphabetically
      * by title.

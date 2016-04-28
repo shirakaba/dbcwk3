@@ -79,7 +79,7 @@ public class API implements APIProvider {
         }
     }
 
-    // to Phan, but dependent on Alex populating db. (db has been populated)
+    // implemented by Phan
     @Override
     public Result<List<SimpleForumSummaryView>> getSimpleForums() {
         final String STMT = "SELECT id FROM Forum ORDER BY title ACS";
@@ -95,22 +95,22 @@ public class API implements APIProvider {
         }
     }
 
-    // to Phan
+    // implemented by Phan
     @Override
     public Result<Integer> countPostsInTopic(long topicId) {
-        final String STMT = "SELECT count(*) AS count FROM Topic" + " WHERE ForumId = ?";
+        final String STMT = "SELECT count(*) AS count FROM Post WHERE topicId = ?";
         int count = 0;
         try(PreparedStatement p = c.prepareStatement(STMT)){
+            p.setString(1, Long.toString(topicId));
             ResultSet rs = p.executeQuery();
+            
             while(rs.next()){
                 count = rs.getInt("count");
-                System.out.println(count);
             }
             return Result.success(count);
         }catch(SQLException e){
             return Result.fatal(e.getMessage());
         }
-        
     }
 
     // TODO: Alex must implement getPersonView() for this to work.(getPersonView done)

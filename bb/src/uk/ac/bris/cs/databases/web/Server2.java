@@ -92,7 +92,8 @@ public class Server2 extends RouterNanoHTTPD {
         //ServerRunner.run(Server.class);
 		APIProvider api = c.getApi();
 		Result rs;
-		rs = api.getForums();
+		rs = api.createPost(6, "username2", "Gladiators is quite possibly... the greatest film every.");
+
 		
 		rs = api.addNewPerson("Jamie2", "shirakaba2", "jb153392");
 

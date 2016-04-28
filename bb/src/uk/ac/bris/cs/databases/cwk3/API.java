@@ -385,6 +385,7 @@ public class API implements APIProvider {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
+    //TO ALEX
     @Override
     public Result likeTopic(String username, long topicId, boolean like) {
         throw new UnsupportedOperationException("Not supported yet.");
@@ -394,6 +395,11 @@ public class API implements APIProvider {
     public Result favouriteTopic(String username, long topicId, boolean fav) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
+
+    
+    /*
+     * Level 3 - more complex queries. Leave these until last.
+     */
 
     @Override
     public Result createTopic(long forumId, String username, String title, String text) {

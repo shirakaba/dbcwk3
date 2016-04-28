@@ -71,6 +71,8 @@ public interface APIProvider {
      * They require a little bit more thought than the level 1 API though.
      */
         
+
+	//to Jamie
     /**
      * Get the latest post in a topic.
      * @param topicId The topic. Must exist.
@@ -79,7 +81,8 @@ public interface APIProvider {
      */
     public Result<PostView> getLatestPost(long topicId);
     
-    /**
+	//TO ALEX
+    /** 
      * Get the "main page" containing a list of forums ordered alphabetically
      * by title.
      * @return the list of all forums, empty list if there are none.

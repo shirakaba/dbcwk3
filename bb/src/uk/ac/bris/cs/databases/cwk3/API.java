@@ -52,7 +52,7 @@ public class API implements APIProvider {
         }
     }
     
-    // to Alex
+    // implemented by the Alex
     @Override
     public Result<PersonView> getPersonView(String username) {
         final String STMT = "SELECT * FROM Person WHERE username = '"+username+"';";
@@ -75,7 +75,7 @@ public class API implements APIProvider {
         }
     }
 
-    // to Phan, but dependent on Alex populating db.
+    // to Phan, but dependent on Alex populating db. (db has been populated)
     @Override
     public Result<List<SimpleForumSummaryView>> getSimpleForums() {
         throw new UnsupportedOperationException("Not supported yet.");
@@ -87,7 +87,7 @@ public class API implements APIProvider {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
-    // TODO: Alex must implement getPersonView() for this to work.
+    // TODO: Alex must implement getPersonView() for this to work.(getPersonView done)
     // to Jamie [FINISHED, untested]
     @Override
     public Result<List<PersonView>> getLikers(long topicId) {
@@ -258,6 +258,7 @@ public class API implements APIProvider {
         }
     }
 
+	//TO ALEX
     @Override
     public Result<List<ForumSummaryView>> getForums() {
         throw new UnsupportedOperationException("Not supported yet.");

@@ -79,13 +79,36 @@ public class API implements APIProvider {
     // to Phan, but dependent on Alex populating db. (db has been populated)
     @Override
     public Result<List<SimpleForumSummaryView>> getSimpleForums() {
-        throw new UnsupportedOperationException("Not supported yet.");
+        final String STMT = "SELECT id FROM Forum ORDER BY title ACS";
+        List <SimpleForumSummaryView> list = new List <> ();
+        try(PreparedStatement p = c.prepareStatement(STMT)){
+            ResultSet rs = p.executeQuery();
+            while(rs.next()){
+                list.put(rs.getString("id"), rs.getString("title"));
+                
+            }
+            return Result.success(list);
+        }catch(SQLException e){
+            return Result.failure(e.getMessage());
+        }
     }
 
     // to Phan
     @Override
     public Result<Integer> countPostsInTopic(long topicId) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        final String STMT = "SELECT count(*) AS count FROM Topic" + " WHERE ForumId = ?";
+        int count;
+        try(PreparedStatement p = c.prepareStatement(STMT)){
+            ResultSet rs = p.executeQuery();
+            while(rs.next()){
+                count = rs.getInt("count");
+                System.out.println(count);
+            }
+            return Result.success(count);
+        }catch(SQLException e){
+            return Result.failure(e.getMessage());
+        }
+        
     }
 
     // TODO: Alex must implement getPersonView() for this to work.(getPersonView done)

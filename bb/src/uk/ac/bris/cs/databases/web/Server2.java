@@ -11,6 +11,7 @@ import java.io.File;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.sql.Statement;
 
 import uk.ac.bris.cs.databases.api.APIProvider;
 import uk.ac.bris.cs.databases.api.Result;
@@ -67,7 +68,7 @@ public class Server2 extends RouterNanoHTTPD {
         ApplicationContext c = ApplicationContext.getInstance();
 
         // database //
-        
+        ;
         Connection conn;
         try {
             conn = DriverManager.getConnection(DATABASE);
@@ -90,16 +91,25 @@ public class Server2 extends RouterNanoHTTPD {
         
         //Server server = new Server();
         //ServerRunner.run(Server.class);
+
+        try (Statement s = conn.createStatement()) {
+            s.executeQuery("select * from post");
+        } catch (SQLException e) {
+            throw new RuntimeException("database not up - " + e);
+        }
+
 		APIProvider api = c.getApi();
 		Result rs;
-		rs = api.createPost(6, "username2", "Gladiators is quite possibly... the greatest film every.");
+//		rs = api.getForums();
+//		rs = api.addNewPerson("Jamie2", "shirakaba2", "jb153392");
+		rs = api.getLatestPost(1);
 
-		
-		rs = api.addNewPerson("Jamie2", "shirakaba2", "jb153392");
+        if (!rs.isSuccess()) {
+            System.out.println(rs.getMessage());
+        }
+//		rs = api.createPost(6, "username2", "Gladiators is quite possibly... the greatest film every.");
 
 //		rs.close();
-		conn.commit();
 		conn.close();
-		System.out.println(api.getUsers());
     }
 }

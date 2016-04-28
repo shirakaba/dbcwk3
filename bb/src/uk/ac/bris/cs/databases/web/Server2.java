@@ -14,6 +14,7 @@ import java.sql.SQLException;
 
 import uk.ac.bris.cs.databases.api.APIProvider;
 import uk.ac.bris.cs.databases.api.Result;
+import uk.ac.bris.cs.databases.api.PersonView;
 import uk.ac.bris.cs.databases.cwk3.API;
 
 /**
@@ -90,7 +91,11 @@ public class Server2 extends RouterNanoHTTPD {
         //Server server = new Server();
         //ServerRunner.run(Server.class);
 		APIProvider api = c.getApi();
-		Result rs = api.addNewPerson("Jamie2", "shirakaba2", "jb153392");
+		Result rs;
+		rs = api.getPersonView("shirakaba2");
+
+		rs = api.addNewPerson("Jamie2", "shirakaba2", "jb153392");
+
 //		rs.close();
 		conn.commit();
 		conn.close();

@@ -21,7 +21,7 @@ public interface APIProvider {
      */
     public Result<Map<String, String>> getUsers();
     
-    // to Alex
+    // to Alex - done
     /**
      * Get a PersonView for the person with the given username.
      * @param username - the username to search for, cannot be empty.

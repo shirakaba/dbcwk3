@@ -55,7 +55,24 @@ public class API implements APIProvider {
     // to Alex
     @Override
     public Result<PersonView> getPersonView(String username) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        final String STMT = "SELECT * FROM Person WHERE username = '"+username+"';";
+        PersonView pv;
+
+        try(PreparedStatement p = c.prepareStatement(STMT)){
+            ResultSet rs = p.executeQuery();
+
+            pv = new PersonView(rs.getString("name"),
+				rs.getString("username"),
+				rs.getString("studentId"));
+            /*System.out.println(pv.getName() + " "
+				+ pv.getUsername() + " "
+				+ pv.getStudentId());*/
+
+            return Result.success(pv);
+        }catch(SQLException e){
+	    e.printStackTrace();
+            return Result.failure(e.getMessage());
+        }
     }
 
     // to Phan, but dependent on Alex populating db.

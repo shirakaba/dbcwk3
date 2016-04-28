@@ -80,12 +80,11 @@ public class API implements APIProvider {
     @Override
     public Result<List<SimpleForumSummaryView>> getSimpleForums() {
         final String STMT = "SELECT id FROM Forum ORDER BY title ACS";
-        List <SimpleForumSummaryView> list = new List <> ();
+        List <SimpleForumSummaryView> list = new ArrayList <>();
         try(PreparedStatement p = c.prepareStatement(STMT)){
             ResultSet rs = p.executeQuery();
             while(rs.next()){
-                list.put(rs.getString("id"), rs.getString("title"));
-                
+                SimpleForumSummaryView fv = new SimpleForumSummaryView(rs.getLong("id"), rs.getString("title"));
             }
             return Result.success(list);
         }catch(SQLException e){
@@ -97,7 +96,7 @@ public class API implements APIProvider {
     @Override
     public Result<Integer> countPostsInTopic(long topicId) {
         final String STMT = "SELECT count(*) AS count FROM Topic" + " WHERE ForumId = ?";
-        int count;
+        int count = 0;
         try(PreparedStatement p = c.prepareStatement(STMT)){
             ResultSet rs = p.executeQuery();
             while(rs.next()){

@@ -258,7 +258,7 @@ public class API implements APIProvider {
 
 
             // gets the ints or Strings out of the ResultSets.
-            int forumId = forumIdRS.getInt("forumId");
+            long forumId = forumIdRS.getLong("forumId");
             int postNumber = postNumberRS.getInt("postNumber");
             String authorName = latestPostRS.getString("name");
             String authorUserName = latestPostRS.getString("username");
@@ -295,6 +295,7 @@ public class API implements APIProvider {
         try(PreparedStatement p = c.prepareStatement(STMT)){
             ResultSet rs = p.executeQuery();
 	    String latestTopicIdSTMT;
+
             while(rs.next()){
 		long currForumId = rs.getInt(1);
 		latestTopicIdSTMT = "SELECT Topic.id, Topic.title From Topic" +
@@ -318,6 +319,7 @@ public class API implements APIProvider {
         }	
     }
 
+    // REALLY EASY UNALLOCATED ONE HERE
     @Override
     public Result createForum(String title) {
         throw new UnsupportedOperationException("Not supported yet.");
@@ -381,9 +383,65 @@ public class API implements APIProvider {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
+    /* Design decision: not limiting the number of posts of a topic to fetch. */
+
+    // To Jamie
     @Override
     public Result<TopicView> getTopic(long topicId, int page) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        final String forumIdSTMT =
+                "SELECT Forum.id, " +
+                        "Forum.name " + // forumId
+                        "FROM Topic " +
+                        "INNER JOIN Forum ON Forum.id = Topic.ForumId " +
+                        "WHERE Topic.id = ? " +
+                        "LIMIT 1;";
+
+        final String postsOfTopicSTMT =
+                "SELECT " +
+                "Topic.title, " + // authorUserName (of Post)
+                "text " + // text (of Post)
+
+                "FROM POST " +
+                "INNER JOIN Topic ON Topic.id = Post.TopicId " +
+                "WHERE Post.TopicId = ? " +
+                ";";
+
+        // tries communicating with the database.
+        try(PreparedStatement postsOfTopicP = c.prepareStatement(postsOfTopicSTMT);
+            PreparedStatement forumIdP = c.prepareStatement(forumIdSTMT)) {
+            // sets all the '?' to be the topicId.
+            postsOfTopicP.setString(1, String.valueOf(topicId));
+            forumIdP.setString(1, String.valueOf(topicId));
+
+            // catches all the ResultSets of each executed query.
+            ResultSet postsOfTopicRS = postsOfTopicP.executeQuery();
+            ResultSet forumIdRS = forumIdP.executeQuery();
+
+            // gets the ints or Strings out of the ResultSets.
+            String forumName = forumIdRS.getString("Forum.name");
+            String title = postsOfTopicRS.getString("Topic.title");
+            long forumId = forumIdRS.getLong("Forum.id");
+
+            // just for debug.;
+//            System.out.println(String.format("Getting LatestPost...\n" +
+//                            "forumId = %d; \n" +
+//                            "topicId = %d; \n" +
+//                            "postNumber = %d; \n" +
+//                            "authorName = %s; \n" +
+//                            "authorUserName = %s; \n" +
+//                            "text = %s; \n" +
+//                            "postedAt = %d; \n" +
+//                            "likes = %d.",
+//                    forumId, topicId, postNumber, authorName, authorUserName, text, postedAt, likes
+//            ));
+
+                    throw new UnsupportedOperationException("Not supported yet.");
+//            return Result.success(new TopicView(forumId, topicId, forumName, title, posts, page));
+        } catch(SQLException e){
+            return Result.failure(e.getMessage());
+        }
+
+//        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     //TO ALEX

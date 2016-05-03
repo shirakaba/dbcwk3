@@ -37,7 +37,7 @@ public class Server2 extends RouterNanoHTTPD {
         addRoute("/people", PeopleHandler.class);
         addRoute("/newtopic", NewTopicHandler.class);
         addRoute("/forums0", SimpleForumsHandler.class);
-        addRoute("/forums", ForumsHandler.class);
+        addRoute("/forums", ForumsHandler.class); //getSimpleForums
         addRoute("/forums2", AdvancedForumsHandler.class);
         addRoute("/forum/:id", ForumHandler.class);
         addRoute("/forum2/:id", AdvancedForumHandler.class);
@@ -104,12 +104,14 @@ public class Server2 extends RouterNanoHTTPD {
 		rs = api.likeTopic("shirakaba2", 1, false);
 //		rs = api.getForums();
 //		rs = api.addNewPerson("Jamie2", "shirakaba2", "jb153392");
-		rs = api.getLatestPost(1);
+//		rs = api.getLatestPost(1);
 
-        if (!rs.isSuccess()) {
-            System.out.println(rs.getMessage());
-        }
+//        if (!rs.isSuccess()) {
+//            System.out.println(rs.getMessage());
+//        }
 //		rs = api.createPost(6, "username2", "Gladiators is quite possibly... the greatest film every.");
+//      rs = api.getSimpleForums();
+        rs = api.countPostsInTopic(1);
 
 //		rs.close();
 		conn.close();

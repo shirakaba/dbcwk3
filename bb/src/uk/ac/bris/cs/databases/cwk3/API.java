@@ -96,7 +96,7 @@ public class API implements APIProvider {
         }
     }
 
-    // implemented by Phan
+    // implemented by Phan [seems to be working in SQLite]
     @Override
     public Result<Integer> countPostsInTopic(long topicId) {
         final String STMT = "SELECT count(*) AS count FROM Post WHERE topicId = ?";
@@ -173,10 +173,8 @@ public class API implements APIProvider {
             System.out.println(String.format("Identified %s as the topic's title.", topicTitle));
 
             // TODO: assess whether this method of counting posts is the best way to do it.
-            // TODO: for loop
-            int postNumber = 0;
-            while (rs.next()) {
-                postNumber++;
+
+            for (int postNumber = 1; rs.next(); postNumber++) {
 
                 simplePostViews.add(new SimplePostView(
                         postNumber, // int postNumber
@@ -201,7 +199,7 @@ public class API implements APIProvider {
      * They require a little bit more thought than the level 1 API though.
      */
 
-    // To Jamie [FINISHED, untested]
+    // To Jamie [FINISHED, seems to work on website]
     @Override
     public Result<PostView> getLatestPost(long topicId) {
         // gets the latest Post, along with info about who posted it.
@@ -320,6 +318,7 @@ public class API implements APIProvider {
         }
     }
 
+    // TO Phan
     @Override
     public Result createForum(String title) {
         throw new UnsupportedOperationException("Not supported yet.");
@@ -378,6 +377,7 @@ public class API implements APIProvider {
         return Result.success();
     }
 
+    // TO Phan
     @Override
     public Result<ForumView> getForum(long id) {
         throw new UnsupportedOperationException("Not supported yet.");

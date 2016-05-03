@@ -497,9 +497,6 @@ public class API implements APIProvider {
     // TO ALEX - "I'll give it ago"
     @Override
     public Result createTopic(long forumId, String username, String title, String text) {
-<<<<<<< HEAD
-        throw new UnsupportedOperationException("Not supported yet.");
-=======
 	long dateInSecs = new Date().getTime() / 1000;
 
 	final String getPersonIdSTMT = "SELECT id FROM Person WHERE username = ?;";
@@ -542,7 +539,6 @@ public class API implements APIProvider {
             return Result.failure(e.getMessage());
         }
         return Result.success();
->>>>>>> 3d2214e60b793a1f8cdb2d583be31feefc405f9d
     }
 
     @Override
@@ -562,15 +558,7 @@ public class API implements APIProvider {
 
     @Override
     public Result likePost(String username, long topicId, int post, boolean like) {
-<<<<<<< HEAD
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
-
-}
-=======
         throw new UnsupportedOperationException("Not supported yet.");  
    }
 
 }
-
->>>>>>> 3d2214e60b793a1f8cdb2d583be31feefc405f9d

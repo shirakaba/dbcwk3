@@ -512,10 +512,10 @@ public class API implements APIProvider {
     /*
      * Level 3 - more complex queries. Leave these until last.
      */
-
+	// TO ALEX - "I'll give it ago"
     @Override
     public Result createTopic(long forumId, String username, String title, String text) {
-        throw new UnsupportedOperationException("Not supported yet.");
+
     }
 
     @Override
@@ -535,7 +535,5 @@ public class API implements APIProvider {
 
     @Override
     public Result likePost(String username, long topicId, int post, boolean like) {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
-    
+        throw new UnsupportedOperationException("Not supported yet.");  
    }

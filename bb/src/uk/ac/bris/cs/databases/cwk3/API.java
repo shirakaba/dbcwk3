@@ -497,7 +497,52 @@ public class API implements APIProvider {
     // TO ALEX - "I'll give it ago"
     @Override
     public Result createTopic(long forumId, String username, String title, String text) {
+<<<<<<< HEAD
         throw new UnsupportedOperationException("Not supported yet.");
+=======
+	long dateInSecs = new Date().getTime() / 1000;
+
+	final String getPersonIdSTMT = "SELECT id FROM Person WHERE username = ?;";
+
+	final String createTopicSTMT = "INSERT INTO Topic (title, ForumId) VALUES(?, ?);";
+
+	long personId, topicId;
+        try(PreparedStatement p = c.prepareStatement(getPersonIdSTMT)){
+            p.setString(1, username);
+            ResultSet rs = p.executeQuery();
+	    personId = rs.getLong(1);
+
+	    PreparedStatement p2 = c.prepareStatement(createTopicSTMT);
+
+	    p2.setString(1,title);
+	    p2.setLong(2,forumId);
+
+            p2.execute();
+            c.commit(); 
+
+	    final String getTopicIdSTMT = "SELECT id FROM Topic WHERE title = ?;";
+
+	    PreparedStatement p3 = c.prepareStatement(getTopicIdSTMT);		
+	    p3.setString(1,title);
+            ResultSet rs3 = p3.executeQuery();
+	    topicId = rs3.getLong(1);
+
+            final String STMT = "INSERT INTO Post (date,text,PersonId,TopicId) VALUES (?, ?, ?, ?);";
+
+            PreparedStatement p1 = c.prepareStatement(STMT);
+
+            p1.setLong(1, dateInSecs);
+            p1.setString(2, text);
+            p1.setLong(3, personId);
+	    p1.setLong(4, topicId);
+            
+            p1.execute();
+            c.commit(); 
+        }catch(SQLException e){
+            return Result.failure(e.getMessage());
+        }
+        return Result.success();
+>>>>>>> 3d2214e60b793a1f8cdb2d583be31feefc405f9d
     }
 
     @Override
@@ -517,7 +562,15 @@ public class API implements APIProvider {
 
     @Override
     public Result likePost(String username, long topicId, int post, boolean like) {
+<<<<<<< HEAD
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
 }
+=======
+        throw new UnsupportedOperationException("Not supported yet.");  
+   }
+
+}
+
+>>>>>>> 3d2214e60b793a1f8cdb2d583be31feefc405f9d

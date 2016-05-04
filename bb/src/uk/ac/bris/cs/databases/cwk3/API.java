@@ -325,6 +325,13 @@ public class API implements APIProvider {
         return Result.success(ll);
     }
 
+    /*
+     * Create a new forum.
+     * @param title - the title of the forum. Must not be null or empty and
+     * no forum with this name must exist yet.
+     * @return success if the forum was created, failure if the title was
+     * null, empty or such a forum already existed; fatal on other errors.
+     */
     // TO Phan
     @Override
     public Result createForum(String title) {
@@ -421,6 +428,12 @@ public class API implements APIProvider {
         return Result.success();
     }
 
+    /*
+     * Corner case: needs to 'meet the specification' if one uses getForum on a forum that has no topics.
+     * Get the detailed view of a single forum.
+     * @param id - the id of the forum to get.
+     * @return A view of this forum if it exists, otherwise failure.
+     */
     // TO Phan
     @Override
     public Result<ForumView> getForum(long id) {
@@ -572,6 +585,14 @@ public class API implements APIProvider {
 
     }
 
+    /*
+     * Set or unset a topic as favourite. Same semantics as likeTopic.
+     * @param username - the person setting the favourite topic (must exist).
+     * @param topicId - the topic to set as favourite (must exist).
+     * @param fav - true to set, false to unset as favourite.
+     * @return success (even if it was a no-op), failure if the person or topic
+     * does not exist and fatal in case of db errors.
+     */
     // TO PHAN
     @Override
     public Result favouriteTopic(String username, long topicId, boolean fav) {
@@ -616,7 +637,7 @@ public class API implements APIProvider {
 
             Long personId = validateUsername(username);
             if(personId == null) return Result.failure("username did not exist.");
-            if(validateForumId(forumId) == null) return Result.failure("Forum id did not exist."); // TODO: ask about failure messages.
+            if(validateForumId(forumId) == null) return Result.failure("Forum id did not exist."); // TODO: ask about failure messages not printing.
 
             p2.setString(1,title);
             p2.setLong(2,forumId);
@@ -661,6 +682,7 @@ public class API implements APIProvider {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
+    // TODO: this shouldn't be at all hard - just reference likeTopic() and generalise the likeNeedsChanging() private method.
     @Override
     public Result likePost(String username, long topicId, int post, boolean like) {
         throw new UnsupportedOperationException("Not supported yet.");  

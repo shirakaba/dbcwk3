@@ -42,12 +42,15 @@ public class API implements APIProvider {
     public Result<Map<String, String>> getUsers() {
         final String STMT = "SELECT username, name FROM Person;";
         Map<String, String> map = new HashMap<>();
+
         try (PreparedStatement p = c.prepareStatement(STMT)) {
+
             ResultSet rs = p.executeQuery();
+
             while (rs.next()) {
                 map.put(rs.getString("username"), rs.getString("name"));
-                System.out.println(rs.getString("username") + rs.getString("name"));
             }
+
             return Result.success(map);
         } catch (SQLException e) {
             return Result.fatal(e.getMessage());
@@ -57,22 +60,17 @@ public class API implements APIProvider {
     // implemented by the Alex
     @Override
     public Result<PersonView> getPersonView(String username) {
-        final String STMT = "SELECT * FROM Person WHERE username = ?;";
-        PersonView pv;
+        final String STMT = "SELECT name, username, studentId FROM Person WHERE username = ?;";
 
         try (PreparedStatement p = c.prepareStatement(STMT)) {
             p.setString(1, username);
 
             ResultSet rs = p.executeQuery();
 
-            pv = new PersonView(rs.getString("name"),
+            return Result.success(new PersonView(
+                    rs.getString("name"),
                     rs.getString("username"),
-                    rs.getString("studentId"));
-            /*System.out.println(pv.getName() + " "
-				+ pv.getUsername() + " "
-				+ pv.getStudentId());*/
-
-            return Result.success(pv);
+                    rs.getString("studentId")));
         } catch (SQLException e) {
             e.printStackTrace();
             return Result.fatal(e.getMessage());
@@ -82,14 +80,16 @@ public class API implements APIProvider {
     // implemented by Phan
     @Override
     public Result<List<SimpleForumSummaryView>> getSimpleForums() {
-        final String STMT = "SELECT id, title FROM Forum ORDER BY title ASC";
+        final String STMT = "SELECT id, title FROM Forum ORDER BY title DESC;";
         List<SimpleForumSummaryView> list = new ArrayList<>();
+
         try (PreparedStatement p = c.prepareStatement(STMT)) {
             ResultSet rs = p.executeQuery();
+
             while (rs.next()) {
-                SimpleForumSummaryView fv = new SimpleForumSummaryView(rs.getLong("id"), rs.getString("title"));
-                list.add(fv);
+                list.add(new SimpleForumSummaryView(rs.getLong("id"), rs.getString("title")));
             }
+
             return Result.success(list);
         } catch (SQLException e) {
             return Result.fatal(e.getMessage());
@@ -99,16 +99,13 @@ public class API implements APIProvider {
     // implemented by Phan [seems to be working in SQLite]
     @Override
     public Result<Integer> countPostsInTopic(long topicId) {
-        final String STMT = "SELECT count(*) AS count FROM Post WHERE topicId = ?";
-        int count = 0;
+        final String STMT = "SELECT count(*) FROM Post WHERE TopicId = ?;";
+
         try (PreparedStatement p = c.prepareStatement(STMT)) {
-            p.setString(1, Long.toString(topicId));
+            p.setLong(1, topicId);
             ResultSet rs = p.executeQuery();
 
-            while (rs.next()) {
-                count = rs.getInt("count");
-            }
-            return Result.success(count);
+            return Result.success(rs.getInt("count"));
         } catch (SQLException e) {
             return Result.fatal(e.getMessage());
         }
@@ -123,7 +120,7 @@ public class API implements APIProvider {
         final String STMT = "SELECT username FROM LikedTopic "
                 + "INNER JOIN Person ON PersonId = Person.id "
                 + "WHERE TopicId = ? "
-                + "ORDER BY username ASC;"; // ordering is required.
+                + "ORDER BY name ASC;"; // ordering is required.
 
         try (PreparedStatement p = c.prepareStatement(STMT)) {
             p.setString(1, String.valueOf(topicId));

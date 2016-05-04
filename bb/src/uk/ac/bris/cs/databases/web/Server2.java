@@ -100,9 +100,10 @@ public class Server2 extends RouterNanoHTTPD {
 
 		APIProvider api = c.getApi();
 		Result rs;
-    		rs = api.createTopic(1, "shirakaba2", "NewTopic", "hello, I am information :)");
-		rs = api.likeTopic("shirakaba2", 1, false);
-//		rs = api.getForums();
+//    		rs = api.createTopic(1, "shirakaba2", "NewTopic", "hello, I am information :)");
+//		rs = api.likeTopic("shirakaba2", 1, false);
+//		rs = api.getPersonView("shirakaba");
+		rs = api.getLikers(1);
 //		rs = api.addNewPerson("Jamie2", "shirakaba2", "jb153392");
 //		rs = api.getLatestPost(1);
 

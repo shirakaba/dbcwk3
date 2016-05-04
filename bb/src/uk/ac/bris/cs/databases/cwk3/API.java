@@ -409,7 +409,7 @@ public class API implements APIProvider {
                 ResultSet rs2 = p2.executeQuery();
                 long postCnt = rs2.getLong("postCnt");
                 if(postCnt < 10 * page + 1) return Result.failure(
-                        String.format("Too few posts existed (%d) to span to requested page (%d)", postCnt, page));
+                        String.format("Too few posts existed (%d) to span to requested page (%d)", postCnt, page);
             } // TODO: Ask guidance on printing this error (the line of code is hit, but doesn't print).
 
             ResultSet rs = p.executeQuery();
@@ -443,7 +443,7 @@ public class API implements APIProvider {
 
     }
 
-    //TO ALEX - DONE
+    // TO ALEX - DONE
     @Override
     public Result likeTopic(String username, long topicId, boolean like) {
 
@@ -476,6 +476,7 @@ public class API implements APIProvider {
 
     }
 
+    // TO PHAN
     @Override
     public Result favouriteTopic(String username, long topicId, boolean fav) {
         throw new UnsupportedOperationException("Not supported yet.");
@@ -488,44 +489,37 @@ public class API implements APIProvider {
     // TO ALEX - "I'll give it ago"
     @Override
     public Result createTopic(long forumId, String username, String title, String text) {
-	long dateInSecs = new Date().getTime() / 1000;
-
 	final String getPersonIdSTMT = "SELECT id FROM Person WHERE username = ?;";
-
 	final String createTopicSTMT = "INSERT INTO Topic (title, ForumId) VALUES(?, ?);";
+	final String getTopicIdSTMT = "SELECT id FROM Topic WHERE title = ?;";
+    final String STMT = "INSERT INTO Post (date,text,PersonId,TopicId) VALUES (?, ?, ?, ?);";
 
-	long personId, topicId;
-        try(PreparedStatement p = c.prepareStatement(getPersonIdSTMT)){
+    long personId, topicId;
+        try(PreparedStatement p = c.prepareStatement(getPersonIdSTMT);
+            PreparedStatement p2 = c.prepareStatement(createTopicSTMT);
+            PreparedStatement p3 = c.prepareStatement(getTopicIdSTMT);
+            PreparedStatement p1 = c.prepareStatement(STMT)){
             p.setString(1, username);
             ResultSet rs = p.executeQuery();
-	    personId = rs.getLong(1);
+            personId = rs.getLong(1);
 
-	    PreparedStatement p2 = c.prepareStatement(createTopicSTMT);
-
-	    p2.setString(1,title);
-	    p2.setLong(2,forumId);
-
+            p2.setString(1,title);
+            p2.setLong(2,forumId);
             p2.execute();
-            c.commit(); 
+            c.commit();
 
-	    final String getTopicIdSTMT = "SELECT id FROM Topic WHERE title = ?;";
-
-	    PreparedStatement p3 = c.prepareStatement(getTopicIdSTMT);		
-	    p3.setString(1,title);
+            p3.setString(1,title);
             ResultSet rs3 = p3.executeQuery();
-	    topicId = rs3.getLong(1);
+            topicId = rs3.getLong(1);
 
-            final String STMT = "INSERT INTO Post (date,text,PersonId,TopicId) VALUES (?, ?, ?, ?);";
-
-            PreparedStatement p1 = c.prepareStatement(STMT);
-
+            long dateInSecs = new Date().getTime() / MS_TO_SECONDS;
             p1.setLong(1, dateInSecs);
             p1.setString(2, text);
             p1.setLong(3, personId);
-	    p1.setLong(4, topicId);
-            
+            p1.setLong(4, topicId);
+
             p1.execute();
-            c.commit(); 
+            c.commit();
         }catch(SQLException e){
             return Result.failure(e.getMessage());
         }

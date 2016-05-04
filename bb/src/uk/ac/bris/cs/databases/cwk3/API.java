@@ -506,7 +506,6 @@ public class API implements APIProvider {
             p2.setString(1,title);
             p2.setLong(2,forumId);
             p2.execute();
-            c.commit();
 
             p3.setString(1,title);
             ResultSet rs3 = p3.executeQuery();
@@ -521,6 +520,11 @@ public class API implements APIProvider {
             p1.execute();
             c.commit();
         }catch(SQLException e){
+            try {
+                c.rollback();
+            } catch (SQLException f) {
+                return Result.failure(f.getMessage());
+            }
             return Result.failure(e.getMessage());
         }
         return Result.success();

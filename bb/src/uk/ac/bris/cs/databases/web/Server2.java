@@ -104,10 +104,10 @@ public class Server2 extends RouterNanoHTTPD {
 //		rs = api.likeTopic("shirakaba2", 1, false);
 //		rs = api.getPersonView("shirakaba");
 //		rs = api.getLikers(1);
-		rs = api.getSimpleTopic(1);
+//		rs = api.getSimpleTopic(1);
 
 //		rs = api.addNewPerson("Jamie2", "shirakaba2", "jb153392");
-//		rs = api.getLatestPost(1);
+		rs = api.getLatestPost(1);
 
 //        if (!rs.isSuccess()) {
 //            System.out.println(rs.getMessage());

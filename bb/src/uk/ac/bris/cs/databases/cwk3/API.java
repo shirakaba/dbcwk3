@@ -37,7 +37,7 @@ public class API implements APIProvider {
         this.c = c;
     }
 
-    /*implemented by Alex & Phan*/
+    /* implemented by Alex & Phan [tested] */
     @Override
     public Result<Map<String, String>> getUsers() {
         final String STMT = "SELECT username, name FROM Person;";
@@ -57,7 +57,7 @@ public class API implements APIProvider {
         }
     }
 
-    // implemented by the Alex
+    // implemented by Alex [tested]
     @Override
     public Result<PersonView> getPersonView(String username) {
         final String STMT = "SELECT name, username, studentId FROM Person WHERE username = ?;";
@@ -77,7 +77,7 @@ public class API implements APIProvider {
         }
     }
 
-    // implemented by Phan
+    // implemented by Phan [tested]
     @Override
     public Result<List<SimpleForumSummaryView>> getSimpleForums() {
         final String STMT = "SELECT id, title FROM Forum ORDER BY title DESC;";
@@ -143,7 +143,7 @@ public class API implements APIProvider {
      * Cons: we have to order by date every time and manually calculate the Post numbers, which
      * will take longer and longer as the Topic gets bigger and bigger. */
 
-    // to Jamie [FINISHED, untested]
+    // to Jamie [FINISHED, tested]
     @Override
     public Result<SimpleTopicView> getSimpleTopic(long topicId) {
         List<SimplePostView> simplePostViews = new ArrayList<>();
@@ -189,61 +189,44 @@ public class API implements APIProvider {
     public Result<PostView> getLatestPost(long topicId) {
         // gets the latest Post, along with info about who posted it.
         final String latestPostSTMT =
-                "SELECT " +
-                        "`date`, " + // postedAt (int date of Post submission)
-                        "`name`, " + // authorName (of Post)
-                        "username, " + // authorUserName (of Post)
-                        "text " + // text (of Post)
-
-                        "FROM Topic " +
-                        "INNER JOIN Post ON Topic.id = Post.TopicId " +
-                        "INNER JOIN Person ON Person.id = Post.PersonId " +
-                        "WHERE Post.TopicId = ? " +
-                        "ORDER BY `date`, Post.id DESC " + // orders first by date, then by recentness of id in case of same-day post
-                        "LIMIT 1;";
-
-        // gets the Forum id for the Topic in question.
-        final String forumIdSTMT =
-                "SELECT Forum.id AS forumId " + // forumId
-                        "FROM Topic " +
-                        "INNER JOIN Forum ON Forum.id = Topic.ForumId " +
-                        "WHERE Topic.id = ? " +
-                        "LIMIT 1;";
+                "SELECT `date`, `name`, username, text, Forum.id AS forumId FROM Topic " +
+                "INNER JOIN Post ON Topic.id = Post.TopicId " +
+                "INNER JOIN Person ON Person.id = Post.PersonId " +
+                "INNER JOIN Forum ON Forum.id = Topic.ForumId " +
+                "WHERE Post.TopicId = ? " +
+                "ORDER BY `date`, Post.id DESC " + // orders first by date, then by recentness of id in case of same-day post
+                "LIMIT 1;";
 
         // counts the number of likes for the Topic in question.
         final String likesSTMT =
-                "SELECT count(TopicId) as likes " +
-                        "FROM LikedTopic " +
-                        "WHERE TopicId = ?;";
+                "SELECT count(*) as likes FROM LikedTopic " +
+                "WHERE TopicId = ?;";
 
         // determines the number of the latest Post by counting all Posts in a Topic.
+        // TODO: generalise this count statement for re-use in countPostsInTopic().
         final String postNumberSTMT =
-                "SELECT count(Post.id) AS postNumber " +
-                        "FROM POST " +
-                        "INNER JOIN Topic ON Topic.id = Post.TopicId " +
-                        "WHERE Post.TopicId = ?;";
+                "SELECT count(*) AS postNumber FROM POST " +
+                "INNER JOIN Topic ON Topic.id = Post.TopicId " +
+                "WHERE Post.TopicId = ?;";
 
         // tries communicating with the database.
         try (PreparedStatement latestPostP = c.prepareStatement(latestPostSTMT);
-             PreparedStatement forumIdP = c.prepareStatement(forumIdSTMT);
              PreparedStatement likesP = c.prepareStatement(likesSTMT);
              PreparedStatement postNumberP = c.prepareStatement(postNumberSTMT)) {
 
             // sets all the '?' to be the topicId.
             latestPostP.setString(1, String.valueOf(topicId));
-            forumIdP.setString(1, String.valueOf(topicId));
             likesP.setString(1, String.valueOf(topicId));
             postNumberP.setString(1, String.valueOf(topicId));
 
             // catches all the ResultSets of each executed query.
             ResultSet latestPostRS = latestPostP.executeQuery(),
-                    forumIdRS = forumIdP.executeQuery(),
                     likesRS = likesP.executeQuery(),
                     postNumberRS = postNumberP.executeQuery();
 
 
             // gets the ints or Strings out of the ResultSets.
-            int forumId = forumIdRS.getInt("forumId");
+            int forumId = latestPostRS.getInt("forumId");
             int postNumber = postNumberRS.getInt("postNumber");
             String authorName = latestPostRS.getString("name");
             String authorUserName = latestPostRS.getString("username");
@@ -253,18 +236,12 @@ public class API implements APIProvider {
 
             // just for debug.;
             System.out.println(String.format("Getting LatestPost...\n" +
-                            "forumId = %d; \n" +
-                            "topicId = %d; \n" +
-                            "postNumber = %d; \n" +
-                            "authorName = %s; \n" +
-                            "authorUserName = %s; \n" +
-                            "text = %s; \n" +
-                            "postedAt = %d; \n" +
-                            "likes = %d.",
-                    forumId, topicId, postNumber, authorName, authorUserName, text, postedAt, likes
-            ));
+                    "forumId = %d; \ntopicId = %d; \npostNumber = %d; \nauthorName = %s; \n" +
+                    "authorUserName = %s; \ntext = %s; \npostedAt = %d; \nlikes = %d.",
+                    forumId, topicId, postNumber, authorName, authorUserName, text, postedAt, likes));
 
-            return Result.success(new PostView(forumId, topicId, postNumber, authorName, authorUserName, text, postedAt, likes));
+            return Result.success(new PostView(
+                    latestPostRS.getInt("forumId"), topicId, postNumber, authorName, authorUserName, text, postedAt, likes));
         } catch (SQLException e) {
             return Result.fatal(e.getMessage());
         }

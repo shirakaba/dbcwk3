@@ -544,8 +544,8 @@ public class API implements APIProvider {
         try(PreparedStatement p2 = c.prepareStatement(createTopicSTMT);
             PreparedStatement p3 = c.prepareStatement(getTopicIdSTMT);
             PreparedStatement p1 = c.prepareStatement(STMT)){
-            Long userId = validateUsername(username);
-            if(userId == null) return Result.failure("Username did not exist.");
+            Long personId = validateUsername(username);
+            if(personId == null) return Result.failure("Username did not exist.");
 
             boolean userIdInValidCircumstance = validateCreateTopic(forumId, title, text);
             if(userIdInValidCircumstance == false) return Result.failure("createTopic requirements not met."); // TODO: ask about failure messages.
@@ -561,7 +561,7 @@ public class API implements APIProvider {
             long dateInSecs = new Date().getTime() / MS_TO_SECONDS;
             p1.setLong(1, dateInSecs);
             p1.setString(2, text);
-            p1.setLong(3, userIdInValidCircumstance);
+            p1.setLong(3, personId);
             p1.setLong(4, topicId);
 
             p1.execute();

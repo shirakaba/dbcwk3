@@ -207,13 +207,6 @@ public class API implements APIProvider {
 
             ResultSet latestPostRS = latestPostP.executeQuery(), likesRS = likesP.executeQuery();
 
-//            System.out.println(String.format("Getting LatestPost...\n" +
-//                    "forumId = %d; \ntopicId = %d; \npostNumber = %d; \nauthorName = %s; \n" +
-//                    "authorUserName = %s; \ntext = %s; \npostedAt = %d; \nlikes = %d.",
-//                    latestPostRS.getInt("forumId"), topicId, latestPostRS.getInt("postNumber"),
-//                    latestPostRS.getString("name"), latestPostRS.getString("username"),
-//                    latestPostRS.getString("text"), latestPostRS.getInt("date"), likesRS.getInt("likes")));
-
             return Result.success(new PostView(
                     latestPostRS.getInt("forumId"), topicId, latestPostRS.getInt("postNumber"),
                     latestPostRS.getString("name"), latestPostRS.getString("username"),

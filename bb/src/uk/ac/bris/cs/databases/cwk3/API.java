@@ -489,12 +489,13 @@ public class API implements APIProvider {
     // TO ALEX - "I'll give it ago"
     @Override
     public Result createTopic(long forumId, String username, String title, String text) {
-	final String getPersonIdSTMT = "SELECT id FROM Person WHERE username = ?;";
-	final String createTopicSTMT = "INSERT INTO Topic (title, ForumId) VALUES(?, ?);";
-	final String getTopicIdSTMT = "SELECT id FROM Topic WHERE title = ?;";
-    final String STMT = "INSERT INTO Post (date,text,PersonId,TopicId) VALUES (?, ?, ?, ?);";
+        final String getPersonIdSTMT = "SELECT id FROM Person WHERE username = ?;";
+        final String createTopicSTMT = "INSERT INTO Topic (title, ForumId) VALUES(?, ?);";
+        final String getTopicIdSTMT = "SELECT id FROM Topic WHERE title = ?;";
+        final String STMT = "INSERT INTO Post (date,text,PersonId,TopicId) VALUES (?, ?, ?, ?);";
 
-    long personId, topicId;
+        long personId, topicId;
+        
         try(PreparedStatement p = c.prepareStatement(getPersonIdSTMT);
             PreparedStatement p2 = c.prepareStatement(createTopicSTMT);
             PreparedStatement p3 = c.prepareStatement(getTopicIdSTMT);

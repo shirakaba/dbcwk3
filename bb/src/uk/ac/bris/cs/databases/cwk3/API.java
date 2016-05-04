@@ -409,7 +409,7 @@ public class API implements APIProvider {
                 ResultSet rs2 = p2.executeQuery();
                 long postCnt = rs2.getLong("postCnt");
                 if(postCnt < 10 * page + 1) return Result.failure(
-                        String.format("Too few posts existed (%d) to span to requested page (%d)", postCnt, page);
+                        String.format("Too few posts existed (%d) to span to requested page (%d)", postCnt, page));
             } // TODO: Ask guidance on printing this error (the line of code is hit, but doesn't print).
 
             ResultSet rs = p.executeQuery();

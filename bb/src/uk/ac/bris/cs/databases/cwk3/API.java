@@ -194,7 +194,7 @@ public class API implements APIProvider {
                 "INNER JOIN Person ON Person.id = Post.PersonId " +
                 "INNER JOIN Forum ON Forum.id = Topic.ForumId " +
                 "WHERE Post.TopicId = ? " +
-                "ORDER BY `date`, Post.id DESC " + // orders first by date, then by recentness of id in case of same-day post
+                "ORDER BY `date`, Post.id DESC " + // orders first by date, then by size (newness) of id in case of same-day post
                 "LIMIT 1;";
 
         // counts the number of likes for the Topic in question.

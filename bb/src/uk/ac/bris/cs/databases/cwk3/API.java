@@ -30,7 +30,7 @@ import uk.ac.bris.cs.databases.api.TopicView;
  * @author csxdb
  */
 public class API implements APIProvider {
-
+    private final static int MS_TO_SECONDS = 1000;
     private final Connection c;
 
     public API(Connection c) {
@@ -248,7 +248,7 @@ public class API implements APIProvider {
 //            return Result.fatal(e.getMessage());
 //        }
 //    }
-    
+
     //TO ALEX - DONE [fixed liberally by Jamie (sorry)]
     @Override
     public Result<List<ForumSummaryView>> getForums() {
@@ -282,32 +282,61 @@ public class API implements APIProvider {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
-    //TO ALEX - DONE
+//
+//    //TO ALEX - DONE
+//    @Override
+//    public Result createPost(long topicId, String username, String text) {
+//
+//        long dateInSecs = new Date().getTime() / MS_TO_SECONDS;
+//
+//        final String getPersonIdSTMT = "SELECT id FROM Person WHERE username = ?;";
+//        long personId;
+//        try (PreparedStatement p = c.prepareStatement(getPersonIdSTMT)) {
+//            p.setString(1, username);
+//            ResultSet rs = p.executeQuery();
+//            personId = rs.getLong(1);
+//
+//
+//            final String STMT = "INSERT INTO Post (date,text,PersonId,TopicId) VALUES (?, ?, ?, ?);";
+//
+//            PreparedStatement p1 = c.prepareStatement(STMT);
+//
+//            p1.setLong(1, dateInSecs);
+//            p1.setString(2, text);
+//            p1.setLong(3, personId);
+//            p1.setLong(4, topicId);
+//
+//            p1.execute();
+//            c.commit();
+//        } catch (SQLException e) {
+//            return Result.fatal(e.getMessage());
+//        }
+//        return Result.success();
+//    }
+
+
+    //TO ALEX - DONE [closed second preparedStatement and - Jamie; tested]
     @Override
     public Result createPost(long topicId, String username, String text) {
+        // TODO: assess whether this first statement is reusable code elsewhere
+        final String getPersonIdSTMT = "SELECT id AS personId FROM Person WHERE username = ?;";
+        final String insertSTMT = "INSERT INTO Post (`date`, `text`, PersonId, TopicId) VALUES (?, ?, ?, ?);";
 
-        long dateInSecs = new Date().getTime() / 1000;
-
-        final String getPersonIdSTMT = "SELECT id FROM Person WHERE username = ?;";
-        long personId;
-        try (PreparedStatement p = c.prepareStatement(getPersonIdSTMT)) {
+        try (PreparedStatement p = c.prepareStatement(getPersonIdSTMT);
+             PreparedStatement p1 = c.prepareStatement(insertSTMT)) {
             p.setString(1, username);
             ResultSet rs = p.executeQuery();
-            personId = rs.getLong(1);
 
-
-            final String STMT = "INSERT INTO Post (date,text,PersonId,TopicId) VALUES (?, ?, ?, ?);";
-
-            PreparedStatement p1 = c.prepareStatement(STMT);
-
+            long dateInSecs = new Date().getTime() / MS_TO_SECONDS;
             p1.setLong(1, dateInSecs);
             p1.setString(2, text);
-            p1.setLong(3, personId);
+            p1.setLong(3, rs.getLong("personId"));
             p1.setLong(4, topicId);
-
             p1.execute();
+
             c.commit();
         } catch (SQLException e) {
+            // TODO: do we rollback here?
             return Result.fatal(e.getMessage());
         }
         return Result.success();

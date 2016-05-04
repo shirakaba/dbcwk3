@@ -336,7 +336,11 @@ public class API implements APIProvider {
 
             c.commit();
         } catch (SQLException e) {
-            // TODO: do we rollback here?
+            try {
+                c.rollback();
+            } catch (SQLException f) {
+                return Result.failure(f.getMessage());
+            }
             return Result.fatal(e.getMessage());
         }
         return Result.success();
@@ -355,9 +359,11 @@ public class API implements APIProvider {
             p.execute();
             c.commit(); // tells the db driver to end the transaction.
         } catch (SQLException e) {
-//          throw new UnsupportedOperationException("exception " + e); // this was originally here, but prob. better to remove.
-            // c.rollback(); // TODO: "Whenever you have done a write but not yet committed, make all exception handlers do an explicit rollback()."
-            // Assess whether this is the right scenario and place to use this. This would also need to be wrapped in a try-catch.
+            try {
+                c.rollback();
+            } catch (SQLException f) {
+                return Result.failure(f.getMessage());
+            }
             return Result.fatal(e.getMessage());
         }
 
@@ -469,7 +475,12 @@ public class API implements APIProvider {
             p1.execute();
             c.commit();
         } catch (SQLException e) {
-            e.printStackTrace();
+            try {
+                c.rollback();
+            } catch (SQLException f) {
+                return Result.failure(f.getMessage());
+            }
+//            e.printStackTrace();
             return Result.failure(e.getMessage());
         }
         return Result.success();
@@ -495,7 +506,7 @@ public class API implements APIProvider {
         final String STMT = "INSERT INTO Post (date,text,PersonId,TopicId) VALUES (?, ?, ?, ?);";
 
         long personId, topicId;
-        
+
         try(PreparedStatement p = c.prepareStatement(getPersonIdSTMT);
             PreparedStatement p2 = c.prepareStatement(createTopicSTMT);
             PreparedStatement p3 = c.prepareStatement(getTopicIdSTMT);

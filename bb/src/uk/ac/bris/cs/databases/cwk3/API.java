@@ -51,10 +51,12 @@ public class API implements APIProvider {
                 map.put(rs.getString("username"), rs.getString("name"));
             }
 
-            return Result.success(map);
+//            return Result.success(map);
         } catch (SQLException e) {
-            return Result.fatal(e.getMessage());
+//            return Result.fatal(e.getMessage());
         }
+
+        return Result.success(map); // TODO: ask whether we return the map even if it's empty, and what do when failing.
     }
 
     /**
@@ -74,10 +76,12 @@ public class API implements APIProvider {
         }
     }
 
-    // implemented by Alex [tested]
+    // implemented by Alex [tested. Validation added by Jamie.]
     @Override
     public Result<PersonView> getPersonView(String username) {
         final String STMT = "SELECT name, username, studentId FROM Person WHERE username = ?;";
+
+        if(username == null || username.equals("")) return Result.failure("Username was empty or null.");
 
         try (PreparedStatement p = c.prepareStatement(STMT)) {
             if(validateUsername(username) == null) return Result.failure("Username did not exist.");
@@ -92,7 +96,7 @@ public class API implements APIProvider {
                     rs.getString("studentId")));
         } catch (SQLException e) {
             e.printStackTrace();
-            return Result.fatal(e.getMessage());
+            return Result.fatal(e.getMessage()); // TODO: what does he mean by "failure (or fatal on a database error)"?
         }
     }
 
@@ -109,10 +113,11 @@ public class API implements APIProvider {
                 list.add(new SimpleForumSummaryView(rs.getLong("id"), rs.getString("title")));
             }
 
-            return Result.success(list);
+//            return Result.success(list);
         } catch (SQLException e) {
-            return Result.fatal(e.getMessage());
+//            return Result.fatal(e.getMessage()); // TODO: need any exception handling here?
         }
+        return Result.success(list); // like getLikers, we return successful even if the list is empty.
     }
 
     // implemented by Phan [seems to be working in SQLite]
@@ -126,7 +131,7 @@ public class API implements APIProvider {
 
             return Result.success(rs.getInt("count"));
         } catch (SQLException e) {
-            return Result.fatal(e.getMessage());
+            return Result.failure(e.getMessage());
         }
     }
 
@@ -513,6 +518,10 @@ public class API implements APIProvider {
     }
 
 
+    /**
+     * TODO
+     * @return TODO.
+     * */
     private boolean validateCreateTopic(long forumId, String title, String text) throws SQLException {
         final String checkForumId = "SELECT id FROM Forum WHERE id = ?;";
 

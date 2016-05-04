@@ -600,7 +600,7 @@ public class API implements APIProvider {
     /*
      * Level 3 - more complex queries. Leave these until last.
      */
-    // TO ALEX - "I'll give it ago" [Jamie - added validation, rollback, and closed preparedStatements. Untested.]
+    // TO ALEX - "I'll give it a go" [Jamie - added validation, rollback, and closed preparedStatements. Untested.]
     @Override
     public Result createTopic(long forumId, String username, String title, String text) {
         final String createTopicSTMT = "INSERT INTO Topic (title, ForumId) VALUES(?, ?);";
@@ -613,6 +613,7 @@ public class API implements APIProvider {
         try(PreparedStatement p2 = c.prepareStatement(createTopicSTMT);
             PreparedStatement p3 = c.prepareStatement(getTopicIdSTMT);
             PreparedStatement p1 = c.prepareStatement(STMT)){
+
             Long personId = validateUsername(username);
             if(personId == null) return Result.failure("username did not exist.");
             if(validateForumId(forumId) == null) return Result.failure("Forum id did not exist."); // TODO: ask about failure messages.
@@ -633,6 +634,8 @@ public class API implements APIProvider {
 
             p1.execute();
             c.commit();
+
+            return Result.success();
         }catch(SQLException e){
             try {
                 c.rollback();
@@ -641,7 +644,6 @@ public class API implements APIProvider {
             }
             return Result.fatal(e.getMessage());
         }
-        return Result.success();
     }
 
     @Override

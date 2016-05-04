@@ -111,29 +111,26 @@ public class API implements APIProvider {
         }
     }
 
-    // TODO: Alex must implement getPersonView() for this to work.(getPersonView done)
-    // to Jamie [FINISHED, untested]
+    // TODO: topicId "must exist", but is that handled by the schema alone? long is primitive type, so can't be null.
+    // TODO: Should we return Result.fatal() if topicId is found to not exist?
+    // to Jamie [FINISHED, tested]
     @Override
     public Result<List<PersonView>> getLikers(long topicId) {
         List<PersonView> list = new ArrayList<>();
 
-        final String STMT = "SELECT username FROM LikedTopic "
+        final String STMT = "SELECT name, username, studentId FROM LikedTopic "
                 + "INNER JOIN Person ON PersonId = Person.id "
                 + "WHERE TopicId = ? "
-                + "ORDER BY name ASC;"; // ordering is required.
+                + "ORDER BY name ASC;";
 
         try (PreparedStatement p = c.prepareStatement(STMT)) {
-            p.setString(1, String.valueOf(topicId));
+            p.setLong(1, topicId);
             ResultSet rs = p.executeQuery();
 
             while (rs.next()) {
-                String username = rs.getString("username");
-                // getValue() returns the value rather than just info about the result.
-                list.add(getPersonView(username).getValue());
-
-                System.out.println("Adding PersonView to List<PersonView>. " +
-                        "username = " + username);
+                list.add(new PersonView(rs.getString("name"), rs.getString("username"), rs.getString("studentId")));
             }
+
             return Result.success(list);
         } catch (SQLException e) {
             return Result.fatal(e.getMessage());

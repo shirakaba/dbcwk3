@@ -199,7 +199,7 @@ public class API implements APIProvider {
 
         try (PreparedStatement p = c.prepareStatement(STMT)) {
             if(validateTopicId(topicId) == null) return Result.failure("topicId did not exist.");
-            
+
             p.setString(1, String.valueOf(topicId));
             ResultSet rs = p.executeQuery();
 
@@ -229,7 +229,6 @@ public class API implements APIProvider {
      * They require a little bit more thought than the level 1 API though.
      */
 
-    // TODO: what if topicId doesn't exist?
     // To Jamie [FINISHED, tested]
     @Override
     public Result<PostView> getLatestPost(long topicId) {
@@ -247,6 +246,8 @@ public class API implements APIProvider {
 
         try (PreparedStatement latestPostP = c.prepareStatement(latestPostSTMT);
              PreparedStatement likesP = c.prepareStatement(likesSTMT)) {
+            if(validateTopicId(topicId) == null) return Result.failure("topicId did not exist.");
+
             latestPostP.setLong(1, topicId);
             likesP.setLong(1, topicId);
 
@@ -261,7 +262,7 @@ public class API implements APIProvider {
         }
     }
 
-//    //TO ALEX - DONE [note: this has looping SQL queries, non-closing preparedStatements and isn't ordered by title]
+//    //TO ALEX - DONE [note: this had looping SQL queries, non-closing preparedStatements and isn't ordered by title]
 //    @Override
 //    public Result<List<ForumSummaryView>> getForums() {
 //        final String STMT = "SELECT * FROM Forum;";
@@ -314,11 +315,12 @@ public class API implements APIProvider {
                         new SimpleTopicSummaryView(rs.getLong("tId"), rs.getLong("fId"), rs.getString("tTitle"))
                 ));
             }
-            return Result.success(ll);
+//            return Result.success(ll);
         } catch (SQLException e) {
-            e.printStackTrace();
-            return Result.fatal(e.getMessage());
+            e.printStackTrace(); // TODO: should we take any action in the event of exceptions being caught?
+//            return Result.fatal(e.getMessage());
         }
+        return Result.success(ll);
     }
 
     // TO Phan
@@ -363,19 +365,18 @@ public class API implements APIProvider {
     //TO ALEX - DONE [closed second preparedStatement and - Jamie; tested]
     @Override
     public Result createPost(long topicId, String username, String text) {
-        // TODO: assess whether this first statement is reusable code elsewhere
-        final String getPersonIdSTMT = "SELECT id AS personId FROM Person WHERE username = ?;";
         final String insertSTMT = "INSERT INTO Post (`date`, `text`, PersonId, TopicId) VALUES (?, ?, ?, ?);";
+        if(text.equals("")) return Result.failure("Posts cannot have empty text.");
 
-        try (PreparedStatement p = c.prepareStatement(getPersonIdSTMT);
-             PreparedStatement p1 = c.prepareStatement(insertSTMT)) {
-            p.setString(1, username);
-            ResultSet rs = p.executeQuery();
+        try (PreparedStatement p1 = c.prepareStatement(insertSTMT)) {
+            Long personId = validateUsername(username);
+            if(personId == null) return Result.failure("Person id did not exist.");
+            if(validateTopicId(topicId) == null) return Result.failure("Topic id did not exist.");
 
             long dateInSecs = new Date().getTime() / MS_TO_SECONDS;
             p1.setLong(1, dateInSecs);
             p1.setString(2, text);
-            p1.setLong(3, rs.getLong("personId"));
+            p1.setLong(3, personId);
             p1.setLong(4, topicId);
             p1.execute();
 
@@ -395,6 +396,9 @@ public class API implements APIProvider {
     @Override
     public Result addNewPerson(String name, String username, String studentId) {
         final String STMT = "INSERT INTO Person (username, name, studentId) VALUES (?, ?, ?)";
+        if(name.equals("")) return Result.failure("name cannot have empty text.");
+        if(username.equals("")) return Result.failure("username cannot have empty text.");
+        if(studentId.equals("")) return Result.failure("studentId cannot have empty text.");
 
         try (PreparedStatement p = c.prepareStatement(STMT)) {
             p.setString(1, username);
@@ -402,7 +406,7 @@ public class API implements APIProvider {
             p.setString(3, studentId);
 
             p.execute();
-            c.commit(); // tells the db driver to end the transaction.
+            c.commit();
         } catch (SQLException e) {
             try {
                 c.rollback();
@@ -430,17 +434,34 @@ public class API implements APIProvider {
     // if there's an index on the id (ie. WHERE ____  = 1), then it's a binary search and is fast (TABLE SEARCH).
     // If there's no unique constraint, will have to check every single entry in the table (TABLE SCAN: once through the whole table).
 
+
+    /**
+     * Checks whether topicId is in Topic table.
+     * @return the corresponding ForumId if the topicId is registered. Otherwise, null.
+     * */
+    private boolean validatePostCount(long topicId, int page) throws SQLException {
+        final String STMT = "SELECT count(*) AS postCnt FROM Post JOIN Topic ON Post.TopicId = Topic.id WHERE TopicId = ?";
+
+        try(PreparedStatement p = c.prepareStatement(STMT)){
+            p.setLong(1, topicId);
+            ResultSet rs = p.executeQuery();
+            long postCnt = rs.getLong("postCnt");
+            if(postCnt < 10 * page + 1) return false;
+
+            return true;
+        }
+    }
+
     // To Jamie [FINISHED; tested]
     @Override
     public Result<TopicView> getTopic(long topicId, int page) {
-        if(page < 0) throw new IllegalStateException("A negative number of pages worth of topics were requested.");
+        if(page < 0) return Result.failure("A negative number of pages worth of topics were requested.");
         List<PostView> posts = new ArrayList<>();
         final String limiter;
 
         if(page == 0) limiter = "";
         else limiter = String.format("LIMIT %d OFFSET %d", 10 * page, 10 * (page - 1) + 1);
 
-        final String checkPostCountSTMT = "SELECT count(*) AS postCnt FROM Post JOIN Topic ON Post.TopicId = Topic.id WHERE TopicId = ?";
         final String ascendingPostsOfTopicSTMT = String.format(
             "SELECT DISTINCT Post.id AS pId, Topic.Id AS tId, Forum.id AS fId, Forum.title AS forumName, " +
             "Topic.title AS tTitle, name, username, `text`, `date`, count(Post.id) AS likes FROM Post " +
@@ -449,19 +470,14 @@ public class API implements APIProvider {
             "WHERE TopicId = ? GROUP BY Post.id " +
             "ORDER BY `date` ASC, Post.id ASC %s;", limiter);
 
-        try (PreparedStatement p = c.prepareStatement(ascendingPostsOfTopicSTMT);
-             PreparedStatement p2 = c.prepareStatement(checkPostCountSTMT)) {
+        try (PreparedStatement p = c.prepareStatement(ascendingPostsOfTopicSTMT)) {
+            if(validateTopicId(topicId) == null) return Result.failure("Topic id did not exist.");
             p.setLong(1, topicId);
 
-            // TODO: populate database with posts to test this. Also ask whether David wanted us to intercept this possibility,
-            // TODO: or just allow the other Result.failure() to run. If the latter, we can delete this query.
-            if(page != 0){
-                p2.setLong(1, topicId);
-                ResultSet rs2 = p2.executeQuery();
-                long postCnt = rs2.getLong("postCnt");
-                if(postCnt < 10 * page + 1) return Result.failure(
-                        String.format("Too few posts existed (%d) to span to requested page (%d)", postCnt, page));
-            } // TODO: Ask guidance on printing this error (the line of code is hit, but doesn't print).
+            // TODO: populate database with posts to test this.
+            // TODO: Ask guidance on printing this error (the line of code is hit, but doesn't print).
+            if(page != 0) if (!validatePostCount(topicId, page))
+                return Result.failure("Too few posts existed to span to requested page");
 
             ResultSet rs = p.executeQuery();
 
@@ -540,22 +556,19 @@ public class API implements APIProvider {
 
 
     /**
-     * TODO
-     * @return TODO.
+     * Checks whether forumId has been registered.
+     * @return Returns corresponding title of forumId. Otherwise, returns null.
      * */
-    private boolean validateCreateTopic(long forumId, String title, String text) throws SQLException {
-        final String checkForumId = "SELECT id FROM Forum WHERE id = ?;";
-
-        if(title == null || title.equals("")) return false; // "title cannot be empty" requirement.
-        if(text == null || text.equals("")) return false; // "title cannot be empty" requirement.
+    private String validateForumId(long forumId) throws SQLException {
+        final String checkForumId = "SELECT id, title FROM Forum WHERE id = ?;";
 
         try(PreparedStatement p = c.prepareStatement(checkForumId)){
             p.setLong(1, forumId);
 
             ResultSet rs = p.executeQuery();
-            if(!rs.next()) return false; // forum id doesn't exist
+            if(!rs.next()) return null; // forum id doesn't exist
 
-            return true;
+            return rs.getString("title");
         }
     }
 
@@ -569,16 +582,15 @@ public class API implements APIProvider {
         final String getTopicIdSTMT = "SELECT id FROM Topic WHERE title = ?;";
         final String STMT = "INSERT INTO Post (`date`, `text`, PersonId, TopicId) VALUES (?, ?, ?, ?);";
 
-        long topicId;
+        if(title.equals("")) return Result.failure("title cannot be empty.");
+        if(text.equals("")) return Result.failure("text cannot be empty.");
 
         try(PreparedStatement p2 = c.prepareStatement(createTopicSTMT);
             PreparedStatement p3 = c.prepareStatement(getTopicIdSTMT);
             PreparedStatement p1 = c.prepareStatement(STMT)){
             Long personId = validateUsername(username);
-            if(personId == null) return Result.failure("Username did not exist.");
-
-            boolean userIdInValidCircumstance = validateCreateTopic(forumId, title, text);
-            if(userIdInValidCircumstance == false) return Result.failure("createTopic requirements not met."); // TODO: ask about failure messages.
+            if(personId == null) return Result.failure("username did not exist.");
+            if(validateForumId(forumId) == null) return Result.failure("Forum id did not exist."); // TODO: ask about failure messages.
 
             p2.setString(1,title);
             p2.setLong(2,forumId);
@@ -586,7 +598,7 @@ public class API implements APIProvider {
 
             p3.setString(1,title);
             ResultSet rs3 = p3.executeQuery();
-            topicId = rs3.getLong(1);
+            long topicId = rs3.getLong(1);
 
             long dateInSecs = new Date().getTime() / MS_TO_SECONDS;
             p1.setLong(1, dateInSecs);
@@ -600,9 +612,9 @@ public class API implements APIProvider {
             try {
                 c.rollback();
             } catch (SQLException f) {
-                return Result.failure(f.getMessage());
+                return Result.fatal(f.getMessage());
             }
-            return Result.failure(e.getMessage());
+            return Result.fatal(e.getMessage());
         }
         return Result.success();
     }

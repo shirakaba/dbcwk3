@@ -342,7 +342,7 @@ public class API implements APIProvider {
         return Result.success();
     }
 
-    // to Jamie [FINISHED, untested]
+    // to Jamie [FINISHED, tested]
     @Override
     public Result addNewPerson(String name, String username, String studentId) {
         final String STMT = "INSERT INTO Person (username, name, studentId) VALUES (?, ?, ?)";

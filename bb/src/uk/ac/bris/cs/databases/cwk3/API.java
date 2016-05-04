@@ -184,12 +184,12 @@ public class API implements APIProvider {
      * They require a little bit more thought than the level 1 API though.
      */
 
+    // TODO: what if topicId doesn't exist?
     // To Jamie [FINISHED, seems to work on website]
     @Override
     public Result<PostView> getLatestPost(long topicId) {
-        // gets the latest Post, along with info about who posted it.
         final String latestPostSTMT =
-                "SELECT `date`, `name`, username, text, Forum.id AS forumId FROM Topic " +
+                "SELECT `date`, `name`, username, text, Forum.id AS forumId, count(*) AS postNumber FROM Topic " +
                 "INNER JOIN Post ON Topic.id = Post.TopicId " +
                 "INNER JOIN Person ON Person.id = Post.PersonId " +
                 "INNER JOIN Forum ON Forum.id = Topic.ForumId " +
@@ -197,51 +197,31 @@ public class API implements APIProvider {
                 "ORDER BY `date`, Post.id DESC " + // orders first by date, then by size (newness) of id in case of same-day post
                 "LIMIT 1;";
 
-        // counts the number of likes for the Topic in question.
-        final String likesSTMT =
-                "SELECT count(*) as likes FROM LikedTopic " +
-                "WHERE TopicId = ?;";
-
-        // determines the number of the latest Post by counting all Posts in a Topic.
         // TODO: generalise this count statement for re-use in countPostsInTopic().
-        final String postNumberSTMT =
-                "SELECT count(*) AS postNumber FROM POST " +
-                "INNER JOIN Topic ON Topic.id = Post.TopicId " +
-                "WHERE Post.TopicId = ?;";
+        final String likesSTMT =
+                "SELECT count(*) as likes FROM LikedTopic WHERE TopicId = ?;";
 
         // tries communicating with the database.
         try (PreparedStatement latestPostP = c.prepareStatement(latestPostSTMT);
-             PreparedStatement likesP = c.prepareStatement(likesSTMT);
-             PreparedStatement postNumberP = c.prepareStatement(postNumberSTMT)) {
-
-            // sets all the '?' to be the topicId.
+             PreparedStatement likesP = c.prepareStatement(likesSTMT)) {
             latestPostP.setString(1, String.valueOf(topicId));
             likesP.setString(1, String.valueOf(topicId));
-            postNumberP.setString(1, String.valueOf(topicId));
 
             // catches all the ResultSets of each executed query.
             ResultSet latestPostRS = latestPostP.executeQuery(),
-                    likesRS = likesP.executeQuery(),
-                    postNumberRS = postNumberP.executeQuery();
+                    likesRS = likesP.executeQuery();
 
-
-            // gets the ints or Strings out of the ResultSets.
-            int forumId = latestPostRS.getInt("forumId");
-            int postNumber = postNumberRS.getInt("postNumber");
-            String authorName = latestPostRS.getString("name");
-            String authorUserName = latestPostRS.getString("username");
-            String text = latestPostRS.getString("text");
-            int postedAt = latestPostRS.getInt("date");
-            int likes = likesRS.getInt("likes");
-
-            // just for debug.;
             System.out.println(String.format("Getting LatestPost...\n" +
                     "forumId = %d; \ntopicId = %d; \npostNumber = %d; \nauthorName = %s; \n" +
                     "authorUserName = %s; \ntext = %s; \npostedAt = %d; \nlikes = %d.",
-                    forumId, topicId, postNumber, authorName, authorUserName, text, postedAt, likes));
+                    latestPostRS.getInt("forumId"), topicId, latestPostRS.getInt("postNumber"),
+                    latestPostRS.getString("name"), latestPostRS.getString("username"),
+                    latestPostRS.getString("text"), latestPostRS.getInt("date"), likesRS.getInt("likes")));
 
             return Result.success(new PostView(
-                    latestPostRS.getInt("forumId"), topicId, postNumber, authorName, authorUserName, text, postedAt, likes));
+                    latestPostRS.getInt("forumId"), topicId, latestPostRS.getInt("postNumber"),
+                    latestPostRS.getString("name"), latestPostRS.getString("username"),
+                    latestPostRS.getString("text"), latestPostRS.getInt("date"), likesRS.getInt("likes")));
         } catch (SQLException e) {
             return Result.fatal(e.getMessage());
         }

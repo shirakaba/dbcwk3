@@ -149,15 +149,10 @@ public class API implements APIProvider {
         List<SimplePostView> simplePostViews = new ArrayList<>();
 
         final String STMT =
-                "SELECT title, " + // topicTitle
-                        "`name`, " + // author (of Post)
-                        "text, " + // text (of Post)
-                        "`date` " + // postedAt (int date of Post submission)
-
-                        "FROM Topic " +
-                        "INNER JOIN Post ON Topic.id = Post.TopicId " +
-                        "INNER JOIN Person ON Person.id = Post.PersonId " +
-                        "WHERE TopicId = ? ORDER BY `date` ASC;";
+                "SELECT title, `name`, `text`, `date` FROM Topic " +
+                "INNER JOIN Post ON Topic.id = Post.TopicId " +
+                "INNER JOIN Person ON Person.id = Post.PersonId " +
+                "WHERE TopicId = ? ORDER BY `date` ASC;";
 
         try (PreparedStatement p = c.prepareStatement(STMT)) {
             p.setString(1, String.valueOf(topicId));
@@ -166,22 +161,18 @@ public class API implements APIProvider {
             String topicTitle = rs.getString("title");
             System.out.println(String.format("Identified %s as the topic's title.", topicTitle));
 
-            // TODO: assess whether this method of counting posts is the best way to do it.
-
             for (int postNumber = 1; rs.next(); postNumber++) {
-
                 simplePostViews.add(new SimplePostView(
-                        postNumber, // int postNumber
-                        rs.getString("name"), // String author
-                        rs.getString("text"), // String text
-                        rs.getInt("date"))); // int postedAt
+                        postNumber,
+                        rs.getString("name"),
+                        rs.getString("text"),
+                        rs.getInt("date")));
 
-                System.out.println("Adding SimplePostView. " +
-                        "postNumber = " + String.valueOf(postNumber) + "; " +
-                        "author = " + rs.getString("name") + "; " +
-                        "text = " + rs.getString("text") + "; " +
-                        "postedAt = " + rs.getInt("date"));
+                System.out.println(String.format("Adding SimplePostView. " +
+                        "postNumber = %s; author = %s; text = %s; postedAt = %d",
+                        String.valueOf(postNumber), rs.getString("name"), rs.getString("text"), rs.getInt("date")));
             }
+
             return Result.success(new SimpleTopicView(topicId, topicTitle, simplePostViews));
         } catch (SQLException e) {
             return Result.fatal(e.getMessage());

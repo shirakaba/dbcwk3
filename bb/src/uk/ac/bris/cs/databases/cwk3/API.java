@@ -415,11 +415,10 @@ public class API implements APIProvider {
                         )
                 );
 
-                System.out.println("Adding PostView during getTopic()... " +
-                        "postNumber = " + String.valueOf(postNumber) + "; " +
-                        "author = " + rs.getString("name") + "; " +
-                        "text = " + rs.getString("text") + "; " +
-                        "postedAt = " + rs.getInt("date"));
+                System.out.println(String.format("Adding PostView during getTopic()... \n" +
+                        "forumId = %d;\n topicId = %d;\n postNumber = %d;\n author = %s;\n username = %s;\n text = %s; postedAt = %d;\n likes = %d.",
+                        forumId, topicId, postNumber, rs.getString("name"), rs.getString("username"), rs.getString("text"), rs.getInt("date"), rs.getInt("likes")
+                ));
             }
 
             return Result.success(new TopicView(forumId, topicId, forumName, title, posts, page));

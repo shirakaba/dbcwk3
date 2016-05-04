@@ -494,12 +494,12 @@ public class API implements APIProvider {
     }
 
 
-    private boolean validateCreateTopic (long forumId, String username, String title, String text) throws SQLException {
-        final String getUsername = "SELECT username FROM Person WHERE username = ?;";
+    private Long validateCreateTopic (long forumId, String username, String title, String text) throws SQLException {
+        final String getUsername = "SELECT id, username FROM Person WHERE username = ?;";
         final String checkForumId = "SELECT id FROM Forum WHERE id = ?;";
 
-        if(title == null || title.equals("")) return false; // "title cannot be empty" requirement.
-        if(text == null || text.equals("")) return false; // "title cannot be empty" requirement.
+        if(title == null || title.equals("")) return null; // "title cannot be empty" requirement.
+        if(text == null || text.equals("")) return null; // "title cannot be empty" requirement.
 
         try(PreparedStatement p = c.prepareStatement(getUsername);
             PreparedStatement p1 = c.prepareStatement(checkForumId)){
@@ -507,11 +507,12 @@ public class API implements APIProvider {
             p1.setLong(1, forumId);
 
             ResultSet rs = p.executeQuery();
-            if(!rs.next()) return false; // username doesn't exist
+            if(!rs.next()) return null; // username doesn't exist
             ResultSet rs1 = p1.executeQuery();
-            if(!rs1.next()) return false; // forum id doesn't exist
+            if(!rs1.next()) return null; // forum id doesn't exist
+
+            return rs.getLong("id");
         }
-        return true;
     }
 
     /*
@@ -520,22 +521,17 @@ public class API implements APIProvider {
     // TO ALEX - "I'll give it ago"
     @Override
     public Result createTopic(long forumId, String username, String title, String text) {
-        final String getPersonIdSTMT = "SELECT id FROM Person WHERE username = ?;";
         final String createTopicSTMT = "INSERT INTO Topic (title, ForumId) VALUES(?, ?);";
         final String getTopicIdSTMT = "SELECT id FROM Topic WHERE title = ?;";
-        final String STMT = "INSERT INTO Post (date,text,PersonId,TopicId) VALUES (?, ?, ?, ?);";
+        final String STMT = "INSERT INTO Post (`date`, `text`, PersonId, TopicId) VALUES (?, ?, ?, ?);";
 
-        long personId, topicId;
+        long topicId;
 
-        try(PreparedStatement p = c.prepareStatement(getPersonIdSTMT);
-            PreparedStatement p2 = c.prepareStatement(createTopicSTMT);
+        try(PreparedStatement p2 = c.prepareStatement(createTopicSTMT);
             PreparedStatement p3 = c.prepareStatement(getTopicIdSTMT);
             PreparedStatement p1 = c.prepareStatement(STMT)){
-            if(!validateCreateTopic(forumId, username, title, text)) return Result.failure("createTopic requirements not met.");
-
-            p.setString(1, username);
-            ResultSet rs = p.executeQuery();
-            personId = rs.getLong(1);
+            Long userIdInValidCircumstance = validateCreateTopic(forumId, username, title, text);
+            if(userIdInValidCircumstance == null) return Result.failure("createTopic requirements not met.");
 
             p2.setString(1,title);
             p2.setLong(2,forumId);
@@ -548,7 +544,7 @@ public class API implements APIProvider {
             long dateInSecs = new Date().getTime() / MS_TO_SECONDS;
             p1.setLong(1, dateInSecs);
             p1.setString(2, text);
-            p1.setLong(3, personId);
+            p1.setLong(3, userIdInValidCircumstance);
             p1.setLong(4, topicId);
 
             p1.execute();

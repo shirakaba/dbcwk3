@@ -518,7 +518,7 @@ public class API implements APIProvider {
     /*
      * Level 3 - more complex queries. Leave these until last.
      */
-    // TO ALEX - "I'll give it ago"
+    // TO ALEX - "I'll give it ago" [Jamie - added validation, rollback, and closed preparedStatements. Untested.]
     @Override
     public Result createTopic(long forumId, String username, String title, String text) {
         final String createTopicSTMT = "INSERT INTO Topic (title, ForumId) VALUES(?, ?);";
@@ -531,7 +531,7 @@ public class API implements APIProvider {
             PreparedStatement p3 = c.prepareStatement(getTopicIdSTMT);
             PreparedStatement p1 = c.prepareStatement(STMT)){
             Long userIdInValidCircumstance = validateCreateTopic(forumId, username, title, text);
-            if(userIdInValidCircumstance == null) return Result.failure("createTopic requirements not met.");
+            if(userIdInValidCircumstance == null) return Result.failure("createTopic requirements not met."); // TODO: ask about failure messages.
 
             p2.setString(1,title);
             p2.setLong(2,forumId);

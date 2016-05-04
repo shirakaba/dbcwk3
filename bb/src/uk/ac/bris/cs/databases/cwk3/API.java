@@ -494,6 +494,26 @@ public class API implements APIProvider {
     }
 
 
+    private boolean validateCreateTopic (long forumId, String username, String title, String text) throws SQLException {
+        final String getUsername = "SELECT username FROM Person WHERE username = ?;";
+        final String checkForumId = "SELECT id FROM Forum WHERE id = ?;";
+
+        if(title == null || title.equals("")) return false; // "title cannot be empty" requirement.
+        if(text == null || text.equals("")) return false; // "title cannot be empty" requirement.
+
+        try(PreparedStatement p = c.prepareStatement(getUsername);
+            PreparedStatement p1 = c.prepareStatement(checkForumId)){
+            p.setString(1, username);
+            p1.setLong(1, forumId);
+
+            ResultSet rs = p.executeQuery();
+            if(!rs.next()) return false; // username doesn't exist
+            ResultSet rs1 = p1.executeQuery();
+            if(!rs1.next()) return false; // forum id doesn't exist
+        }
+        return true;
+    }
+
     /*
      * Level 3 - more complex queries. Leave these until last.
      */
@@ -511,6 +531,8 @@ public class API implements APIProvider {
             PreparedStatement p2 = c.prepareStatement(createTopicSTMT);
             PreparedStatement p3 = c.prepareStatement(getTopicIdSTMT);
             PreparedStatement p1 = c.prepareStatement(STMT)){
+            if(!validateCreateTopic(forumId, username, title, text)) return Result.failure("createTopic requirements not met.");
+
             p.setString(1, username);
             ResultSet rs = p.executeQuery();
             personId = rs.getLong(1);

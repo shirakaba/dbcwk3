@@ -194,7 +194,7 @@ public class API implements APIProvider {
                 "INNER JOIN Person ON Person.id = Post.PersonId " +
                 "INNER JOIN Forum ON Forum.id = Topic.ForumId " +
                 "WHERE Post.TopicId = ? " +
-                "ORDER BY `date`, Post.id DESC " + // orders first by date, then by size (newness) of id in case of same-day post
+                "ORDER BY `date` DESC, Post.id DESC " + // orders first by date, then by size (newness) of id in case of same-day post
                 "LIMIT 1;";
 
         // TODO: generalise this count statement for re-use in countPostsInTopic().
@@ -216,31 +216,58 @@ public class API implements APIProvider {
         }
     }
 
-    //TO ALEX - DONE
+//    //TO ALEX - DONE [note: this has looping SQL queries, non-closing preparedStatements and isn't ordered by title]
+//    @Override
+//    public Result<List<ForumSummaryView>> getForums() {
+//        final String STMT = "SELECT * FROM Forum;";
+//        List<ForumSummaryView> ll = new ArrayList<>();
+//        SimpleTopicSummaryView stsv;
+//
+//        try (PreparedStatement p = c.prepareStatement(STMT)) {
+//            ResultSet rs = p.executeQuery();
+//            String latestTopicIdSTMT;
+//            while (rs.next()) {
+//                long currForumId = rs.getInt(1);
+//                latestTopicIdSTMT = "SELECT Topic.id, Topic.title From Topic" +
+//                        " JOIN Post ON Post.TopicId = Topic.id " +
+//                        " WHERE ForumId = " + currForumId + " ORDER BY date LIMIT 1;";
+//
+//                PreparedStatement p1 = c.prepareStatement(latestTopicIdSTMT);
+//                ResultSet rs1 = p1.executeQuery();
+//                stsv = new SimpleTopicSummaryView(rs1.getLong(1), currForumId, rs1.getString("title"));
+//		/*System.out.println(rs.getLong(1) + " " + rs.getString("title") + " " + stsv.getTitle());*/
+//
+//                ForumSummaryView fsv = new ForumSummaryView(rs.getLong(1),
+//                        rs.getString("title"),
+//                        stsv);
+//                ll.add(fsv);
+//            }
+//            return Result.success(ll);
+//        } catch (SQLException e) {
+//            e.printStackTrace();
+//            return Result.fatal(e.getMessage());
+//        }
+//    }
+    
+    //TO ALEX - DONE [fixed liberally by Jamie (sorry)]
     @Override
     public Result<List<ForumSummaryView>> getForums() {
-        final String STMT = "SELECT * FROM Forum;";
         List<ForumSummaryView> ll = new ArrayList<>();
-        SimpleTopicSummaryView stsv;
+        final String STMT =
+                "SELECT Forum.id AS fId, Forum.title AS fTitle, Topic.id AS tId, Topic.title AS tTitle FROM Forum " +
+                "JOIN Topic ON Topic.ForumId = Forum.id " +
+                "JOIN Post ON Post.TopicId = Topic.id " +
+                "GROUP BY Forum.id " +
+                "ORDER BY Forum.title ASC, `date` DESC, Post.id DESC;";
 
         try (PreparedStatement p = c.prepareStatement(STMT)) {
             ResultSet rs = p.executeQuery();
-            String latestTopicIdSTMT;
+
             while (rs.next()) {
-                long currForumId = rs.getInt(1);
-                latestTopicIdSTMT = "SELECT Topic.id, Topic.title From Topic" +
-                        " JOIN Post ON Post.TopicId = Topic.id " +
-                        " WHERE ForumId = " + currForumId + " ORDER BY date LIMIT 1;";
-
-                PreparedStatement p1 = c.prepareStatement(latestTopicIdSTMT);
-                ResultSet rs1 = p1.executeQuery();
-                stsv = new SimpleTopicSummaryView(rs1.getLong(1), currForumId, rs1.getString("title"));
-		/*System.out.println(rs.getLong(1) + " " + rs.getString("title") + " " + stsv.getTitle());*/
-
-                ForumSummaryView fsv = new ForumSummaryView(rs.getLong(1),
-                        rs.getString("title"),
-                        stsv);
-                ll.add(fsv);
+                ll.add(new ForumSummaryView(rs.getLong("fId"), rs.getString("fTitle"),
+                        // This is the the topic most recently posted in.
+                        new SimpleTopicSummaryView(rs.getLong("tId"), rs.getLong("fId"), rs.getString("tTitle"))
+                ));
             }
             return Result.success(ll);
         } catch (SQLException e) {

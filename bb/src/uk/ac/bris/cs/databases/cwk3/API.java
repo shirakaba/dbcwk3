@@ -57,12 +57,31 @@ public class API implements APIProvider {
         }
     }
 
+    /**
+     * Checks whether username is in Person table.
+     * @return the corresponding Person.id if the username is registered. Otherwise, null.
+     * */
+    private Long validateUsername(String username) throws SQLException {
+        final String getUsername = "SELECT id, username FROM Person WHERE username = ?;";
+
+        try(PreparedStatement p = c.prepareStatement(getUsername)){
+            p.setString(1, username);
+
+            ResultSet rs = p.executeQuery();
+            if(!rs.next()) return null; // username doesn't exist
+
+            return rs.getLong("id");
+        }
+    }
+
     // implemented by Alex [tested]
     @Override
     public Result<PersonView> getPersonView(String username) {
         final String STMT = "SELECT name, username, studentId FROM Person WHERE username = ?;";
 
         try (PreparedStatement p = c.prepareStatement(STMT)) {
+            if(validateUsername(username) == null) return Result.failure("Username did not exist.");
+
             p.setString(1, username);
 
             ResultSet rs = p.executeQuery();
@@ -494,24 +513,19 @@ public class API implements APIProvider {
     }
 
 
-    private Long validateCreateTopic (long forumId, String username, String title, String text) throws SQLException {
-        final String getUsername = "SELECT id, username FROM Person WHERE username = ?;";
+    private boolean validateCreateTopic(long forumId, String title, String text) throws SQLException {
         final String checkForumId = "SELECT id FROM Forum WHERE id = ?;";
 
-        if(title == null || title.equals("")) return null; // "title cannot be empty" requirement.
-        if(text == null || text.equals("")) return null; // "title cannot be empty" requirement.
+        if(title == null || title.equals("")) return false; // "title cannot be empty" requirement.
+        if(text == null || text.equals("")) return false; // "title cannot be empty" requirement.
 
-        try(PreparedStatement p = c.prepareStatement(getUsername);
-            PreparedStatement p1 = c.prepareStatement(checkForumId)){
-            p.setString(1, username);
-            p1.setLong(1, forumId);
+        try(PreparedStatement p = c.prepareStatement(checkForumId)){
+            p.setLong(1, forumId);
 
             ResultSet rs = p.executeQuery();
-            if(!rs.next()) return null; // username doesn't exist
-            ResultSet rs1 = p1.executeQuery();
-            if(!rs1.next()) return null; // forum id doesn't exist
+            if(!rs.next()) return false; // forum id doesn't exist
 
-            return rs.getLong("id");
+            return true;
         }
     }
 
@@ -530,8 +544,11 @@ public class API implements APIProvider {
         try(PreparedStatement p2 = c.prepareStatement(createTopicSTMT);
             PreparedStatement p3 = c.prepareStatement(getTopicIdSTMT);
             PreparedStatement p1 = c.prepareStatement(STMT)){
-            Long userIdInValidCircumstance = validateCreateTopic(forumId, username, title, text);
-            if(userIdInValidCircumstance == null) return Result.failure("createTopic requirements not met."); // TODO: ask about failure messages.
+            Long userId = validateUsername(username);
+            if(userId == null) return Result.failure("Username did not exist.");
+
+            boolean userIdInValidCircumstance = validateCreateTopic(forumId, title, text);
+            if(userIdInValidCircumstance == false) return Result.failure("createTopic requirements not met."); // TODO: ask about failure messages.
 
             p2.setString(1,title);
             p2.setLong(2,forumId);

@@ -123,7 +123,7 @@ public class API implements APIProvider {
     // implemented by Phan [seems to be working in SQLite]
     @Override
     public Result<Integer> countPostsInTopic(long topicId) {
-        final String STMT = "SELECT count(*) FROM Post WHERE TopicId = ?;";
+        final String STMT = "SELECT count(*) FROM Post WHERE TopicId = ?;"; // TODO: ask if count(*) is faster/slower than count(column)
 
         try (PreparedStatement p = c.prepareStatement(STMT)) {
             p.setLong(1, topicId);
@@ -135,19 +135,38 @@ public class API implements APIProvider {
         }
     }
 
-    // TODO: topicId "must exist", but is that handled by the schema alone? long is primitive type, so can't be null.
-    // TODO: Should we return Result.fatal() if topicId is found to not exist?
+
+    /**
+     * Checks whether topicId is in Topic table.
+     * @return the corresponding ForumId if the topicId is registered. Otherwise, null.
+     * */
+    private Long validateTopicId(long topicId) throws SQLException {
+        final String getTopicId = "SELECT id, forumId FROM Topic WHERE id = ?;";
+
+        try(PreparedStatement p = c.prepareStatement(getTopicId)){
+            p.setLong(1, topicId);
+
+            ResultSet rs = p.executeQuery();
+            if(!rs.next()) return null; // topicId doesn't exist
+
+            return rs.getLong("ForumId");
+        }
+    }
+
     // to Jamie [FINISHED, tested]
     @Override
     public Result<List<PersonView>> getLikers(long topicId) {
         List<PersonView> list = new ArrayList<>();
 
-        final String STMT = "SELECT name, username, studentId FROM LikedTopic "
-                + "INNER JOIN Person ON PersonId = Person.id "
-                + "WHERE TopicId = ? "
-                + "ORDER BY name ASC;";
+        final String STMT =
+                "SELECT name, username, studentId FROM LikedTopic " +
+                "INNER JOIN Person ON PersonId = Person.id " +
+                "WHERE TopicId = ? " +
+                "ORDER BY name ASC;";
 
         try (PreparedStatement p = c.prepareStatement(STMT)) {
+            if(validateTopicId(topicId) == null) return Result.failure("topicId did not exist.");
+
             p.setLong(1, topicId);
             ResultSet rs = p.executeQuery();
 

@@ -379,46 +379,61 @@ public class API implements APIProvider {
     // if there's an index on the id (ie. WHERE ____  = 1), then it's a binary search and is fast (TABLE SEARCH).
     // If there's no unique constraint, will have to check every single entry in the table (TABLE SCAN: once through the whole table).
 
-    // To Jamie [FINISHED]
+    // To Jamie [FINISHED; tested]
     @Override
     public Result<TopicView> getTopic(long topicId, int page) {
+        if(page < 0) throw new IllegalStateException("A negative number of pages worth of topics were requested.");
         List<PostView> posts = new ArrayList<>();
+        final String limiter;
 
-        final String ascendingPostsOfTopicSTMT =
-                "SELECT DISTINCT Post.id AS pId, Topic.Id AS tId, Forum.id AS fId, Forum.title AS forumName, Topic.title AS tTitle, name, username, `text`, `date`, count(Post.id) AS likes FROM Post " +
-                        "JOIN Topic ON Post.TopicId = Topic.id JOIN Person ON Post.PersonId = Person.id JOIN Forum ON Topic.ForumId = Forum.id " +
-                        "LEFT JOIN LikedPost ON LikedPost.PostId = Post.id " +
-                        "WHERE TopicId = ? GROUP BY Post.id " +
-                        "ORDER BY `date` ASC, Post.id ASC;";
+        if(page == 0) limiter = "";
+        else limiter = String.format("LIMIT %d OFFSET %d", 10 * page, 10 * (page - 1) + 1);
 
-        try (PreparedStatement p = c.prepareStatement(ascendingPostsOfTopicSTMT)) {
+        final String checkPostCountSTMT = "SELECT count(*) AS postCnt FROM Post JOIN Topic ON Post.TopicId = Topic.id WHERE TopicId = ?";
+        final String ascendingPostsOfTopicSTMT = String.format(
+            "SELECT DISTINCT Post.id AS pId, Topic.Id AS tId, Forum.id AS fId, Forum.title AS forumName, " +
+            "Topic.title AS tTitle, name, username, `text`, `date`, count(Post.id) AS likes FROM Post " +
+            "JOIN Topic ON Post.TopicId = Topic.id JOIN Person ON Post.PersonId = Person.id JOIN Forum ON Topic.ForumId = Forum.id " +
+            "LEFT JOIN LikedPost ON LikedPost.PostId = Post.id " +
+            "WHERE TopicId = ? GROUP BY Post.id " +
+            "ORDER BY `date` ASC, Post.id ASC %s;", limiter);
+
+        try (PreparedStatement p = c.prepareStatement(ascendingPostsOfTopicSTMT);
+             PreparedStatement p2 = c.prepareStatement(checkPostCountSTMT)) {
             p.setLong(1, topicId);
+
+            // TODO: populate database with posts to test this. Also ask whether David wanted us to intercept this possibility,
+            // TODO: or just allow the other Result.failure() to run. If the latter, we can delete this query.
+            if(page != 0){
+                p2.setLong(1, topicId);
+                ResultSet rs2 = p2.executeQuery();
+                long postCnt = rs2.getLong("postCnt");
+                if(postCnt < 10 * page + 1) return Result.failure(
+                        String.format("Too few posts existed (%d) to span to requested page (%d)", postCnt, page));
+            } // TODO: Ask guidance on printing this error (the line of code is hit, but doesn't print).
+
             ResultSet rs = p.executeQuery();
 
             long forumId = rs.getLong("fId");
             String forumName = rs.getString("forumName");
             String title = rs.getString("tTitle");
 
-
             for(int postNumber = 1; rs.next(); postNumber++) {
-                System.out.println("ENTERING FOR LOOP");
-
                 posts.add(new PostView(
-                        forumId,
-                        topicId,
-                        postNumber, // int postNumber
-                        rs.getString("name"), // String authorName
-                        rs.getString("username"), // String authorUserName
-                        rs.getString("text"), // String text
-                        rs.getInt("date"),
-                        rs.getInt("likes") // likes of Post
-                        )
+                            forumId,
+                            topicId,
+                            postNumber,
+                            rs.getString("name"),
+                            rs.getString("username"),
+                            rs.getString("text"),
+                            rs.getInt("date"),
+                            rs.getInt("likes")
+                          )
                 );
 
-                System.out.println(String.format("Adding PostView during getTopic()... \n" +
-                        "forumId = %d;\n topicId = %d;\n postNumber = %d;\n author = %s;\n username = %s;\n text = %s; postedAt = %d;\n likes = %d.",
-                        forumId, topicId, postNumber, rs.getString("name"), rs.getString("username"), rs.getString("text"), rs.getInt("date"), rs.getInt("likes")
-                ));
+//                System.out.println(String.format("Adding PostView during getTopic()... \n" +
+//                    "forumId = %d;\n topicId = %d;\n postNumber = %d;\n author = %s;\n username = %s;\n text = %s; postedAt = %d;\n likes = %d.",
+//                    forumId, topicId, postNumber, rs.getString("name"), rs.getString("username"), rs.getString("text"), rs.getInt("date"), rs.getInt("likes")));
             }
 
             return Result.success(new TopicView(forumId, topicId, forumName, title, posts, page));

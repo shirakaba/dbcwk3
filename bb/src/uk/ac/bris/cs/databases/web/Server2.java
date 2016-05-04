@@ -107,7 +107,8 @@ public class Server2 extends RouterNanoHTTPD {
 //		rs = api.getSimpleTopic(1);
 
 //		rs = api.addNewPerson("Jamie2", "shirakaba2", "jb153392");
-		rs = api.getLatestPost(1);
+//		rs = api.getLatestPost(1);
+		rs = api.getTopic(1, 1);
 
 //        if (!rs.isSuccess()) {
 //            System.out.println(rs.getMessage());

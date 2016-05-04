@@ -391,7 +391,10 @@ public class API implements APIProvider {
 
         // we need all the likes for each post
         final String ascendingPostsOfTopicSTMT =
-                "SELECT count(PostId) AS likes, text, name, username, date FROM Post LEFT JOIN LikedPost ON PostId = Post.id LEFT JOIN Topic ON Topic.id = Post.TopicId LEFT JOIN Person ON Post.PersonId = Person.id WHERE TopicId = ? GROUP BY TopicId ORDER BY `date`, Post.id ASC;"; // TODO: note that I don't know whether Post.id runs in an opposite order to date.
+                "SELECT count(PostId) AS likes, `text`, name, username, `date` FROM Post " +
+                "LEFT JOIN LikedPost ON PostId = Post.id LEFT JOIN Topic ON Topic.id = Post.TopicId LEFT JOIN Person ON Post.PersonId = Person.id " +
+                "WHERE TopicId = ? GROUP BY PostId ORDER BY `date` DESC, Post.id ASC;";
+//        "SELECT count(PostId) AS likes, `text`, name, username, `date`, Forum.id AS forumId, Forum.title AS forumName, Topic.title AS tTitle FROM Post LEFT JOIN LikedPost ON PostId = Post.id LEFT JOIN Topic ON Topic.id = Post.TopicId LEFT JOIN Person ON Post.PersonId = Person.id JOIN Forum ON Topic.ForumId = Forum.id WHERE TopicId = ? GROUP BY TopicId ORDER BY `date`, Post.id ASC;";
         // SELECT count(PostId) AS likes, text, name, username FROM Post LEFT JOIN LikedPost ON PostId = Post.id JOIN Topic ON Topic.id = Post.TopicId JOIN Person ON Post.PersonId = Person.id WHERE TopicId = 1 GROUP BY TopicId ORDER BY `date`, Post.id ASC;
 
         // tries communicating with the database.

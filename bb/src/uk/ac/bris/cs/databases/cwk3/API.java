@@ -60,7 +60,8 @@ public class API implements APIProvider {
     }
 
     /**
-     * Checks whether username is in Person table.
+     * Checks whether username is in the Person table.
+     * @param username - the username to check for the existence of in the Person table.
      * @return the corresponding Person.id if the username is registered. Otherwise, null.
      * */
     private Long validateUsername(String username) throws SQLException {
@@ -137,7 +138,8 @@ public class API implements APIProvider {
 
 
     /**
-     * Checks whether topicId is in Topic table.
+     * Checks whether topicId is in the Topic table.
+     * @param topicId - the id to check for existence of in the Topic table.
      * @return the corresponding ForumId if the topicId is registered. Otherwise, null.
      * */
     private Long validateTopicId(long topicId) throws SQLException {
@@ -165,7 +167,7 @@ public class API implements APIProvider {
                 "ORDER BY name ASC;";
 
         try (PreparedStatement p = c.prepareStatement(STMT)) {
-            if(validateTopicId(topicId) == null) return Result.failure("topicId did not exist.");
+        if(validateTopicId(topicId) == null) return Result.failure("topicId did not exist.");
 
             p.setLong(1, topicId);
             ResultSet rs = p.executeQuery();
@@ -436,10 +438,14 @@ public class API implements APIProvider {
 
 
     /**
-     * Checks whether topicId is in Topic table.
-     * @return the corresponding ForumId if the topicId is registered. Otherwise, null.
+     * Checks whether sufficient Posts exist at the page offset to display a page worth of Posts.
+     * @param page - the page of Posts to navigate to.
+     * @param topicId - TopicId to check for the existence of in table.
+     * @return false if too few Posts. True if enough Posts, or if page specified is zero (supporting any number of Posts).
      * */
     private boolean validatePostCount(long topicId, int page) throws SQLException {
+        if(page == 0) return true;
+
         final String STMT = "SELECT count(*) AS postCnt FROM Post JOIN Topic ON Post.TopicId = Topic.id WHERE TopicId = ?";
 
         try(PreparedStatement p = c.prepareStatement(STMT)){
@@ -476,8 +482,7 @@ public class API implements APIProvider {
 
             // TODO: populate database with posts to test this.
             // TODO: Ask guidance on printing this error (the line of code is hit, but doesn't print).
-            if(page != 0) if (!validatePostCount(topicId, page))
-                return Result.failure("Too few posts existed to span to requested page");
+            if (!validatePostCount(topicId, page)) return Result.failure("Too few posts existed to span to requested page");
 
             ResultSet rs = p.executeQuery();
 
@@ -510,25 +515,44 @@ public class API implements APIProvider {
 
     }
 
+
+    /**
+     * Checks whether a Topic has already been liked by a given person in the LikedTopic table.
+     * @param TopicId - TopicId to check for the existence of in table.
+     * @param PersonId - PersonId to check for the existence of in table.
+     * @param intendToLike - true if intending to like; false if intending to unlike.
+     * @return Returns true/false concerning whether an input Person id has already liked an the input Topic id.
+     * */
+    private boolean likeNeedsChanging(long TopicId, long PersonId, boolean intendToLike) throws SQLException {
+        boolean alreadyLikedTopic = false;
+        final String STMT = "SELECT TopicId, PersonId FROM LikedTopic WHERE TopicId = ? AND PersonId = ?;";
+
+        try(PreparedStatement p = c.prepareStatement(STMT)){
+            p.setLong(1, TopicId);
+            p.setLong(2, PersonId);
+
+            ResultSet rs = p.executeQuery();
+            if(rs.next()) alreadyLikedTopic = true;
+
+            if(intendToLike) if (alreadyLikedTopic) return false;
+            else if (!alreadyLikedTopic) return false;
+
+            return true;
+        }
+    }
+
     // TO ALEX - DONE
     @Override
     public Result likeTopic(String username, long topicId, boolean like) {
+        final String STMT;
+        if (like) STMT = "INSERT INTO LikedTopic (TopicId, PersonId) VALUES (?, ?);";
+        else STMT = "DELETE FROM LikedTopic WHERE TopicId = ? AND PersonId = ?;";
 
-        final String getPersonIdSTMT = "SELECT id FROM Person WHERE username = ?;";
-        long personId;
-        try (PreparedStatement p = c.prepareStatement(getPersonIdSTMT)) {
-            p.setString(1, username);
-            ResultSet rs = p.executeQuery();
-            personId = rs.getLong(1);
-
-            final String STMT;
-            if (like) {
-                STMT = "INSERT INTO LikedTopic (TopicId, PersonId) VALUES (?, ?);";
-            } else {
-                STMT = "DELETE FROM LikedTopic WHERE TopicId = ? AND PersonId = ?;";
-            }
-
-            PreparedStatement p1 = c.prepareStatement(STMT);
+        try (PreparedStatement p1 = c.prepareStatement(STMT)) {
+            Long personId = validateUsername(username);
+            if(personId == null) return Result.failure("username did not exist.");
+            if(validateTopicId(topicId) == null) return Result.failure("topicId did not exist.");
+            if(!likeNeedsChanging(topicId, personId, like)) return Result.success();
 
             p1.setLong(1, topicId);
             p1.setLong(2, personId);
@@ -539,10 +563,10 @@ public class API implements APIProvider {
             try {
                 c.rollback();
             } catch (SQLException f) {
-                return Result.failure(f.getMessage());
+                return Result.fatal(f.getMessage());
             }
 //            e.printStackTrace();
-            return Result.failure(e.getMessage());
+            return Result.fatal(e.getMessage());
         }
         return Result.success();
 
@@ -556,7 +580,8 @@ public class API implements APIProvider {
 
 
     /**
-     * Checks whether forumId has been registered.
+     * Checks whether forumId has been registered in the Forum table.
+     * @param forumId - forumId to check for the existence of in table.
      * @return Returns corresponding title of forumId. Otherwise, returns null.
      * */
     private String validateForumId(long forumId) throws SQLException {

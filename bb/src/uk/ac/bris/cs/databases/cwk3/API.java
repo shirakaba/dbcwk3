@@ -384,56 +384,42 @@ public class API implements APIProvider {
     public Result<TopicView> getTopic(long topicId, int page) {
         List<PostView> posts = new ArrayList<>();
 
-        final String topicInfoSTMT =
-//                "SELECT count(Post.id) AS postNumber, " + // postNumber not actually needed, I think.
-                "SELECT Forum.id AS forumId, Forum.title AS forumName, Topic.title AS title FROM Topic INNER JOIN Forum ON Forum.id = Topic.ForumId INNER JOIN Post ON Post.TopicId = Topic.id WHERE Topic.id = ? LIMIT 1;";
-        // SELECT Forum.id AS forumId, Forum.title AS forumName, Topic.title AS title FROM Topic INNER JOIN Forum ON Forum.id = Topic.ForumId INNER JOIN Post ON Post.TopicId = Topic.id WHERE Topic.id = 1 LIMIT 1;
-
-        // we need all the likes for each post
         final String ascendingPostsOfTopicSTMT =
-                "SELECT count(PostId) AS likes, `text`, name, username, `date` FROM Post " +
-                "LEFT JOIN LikedPost ON PostId = Post.id LEFT JOIN Topic ON Topic.id = Post.TopicId LEFT JOIN Person ON Post.PersonId = Person.id " +
-                "WHERE TopicId = ? GROUP BY PostId ORDER BY `date` DESC, Post.id ASC;";
-//        "SELECT count(PostId) AS likes, `text`, name, username, `date`, Forum.id AS forumId, Forum.title AS forumName, Topic.title AS tTitle FROM Post LEFT JOIN LikedPost ON PostId = Post.id LEFT JOIN Topic ON Topic.id = Post.TopicId LEFT JOIN Person ON Post.PersonId = Person.id JOIN Forum ON Topic.ForumId = Forum.id WHERE TopicId = ? GROUP BY TopicId ORDER BY `date`, Post.id ASC;";
-        // SELECT count(PostId) AS likes, text, name, username FROM Post LEFT JOIN LikedPost ON PostId = Post.id JOIN Topic ON Topic.id = Post.TopicId JOIN Person ON Post.PersonId = Person.id WHERE TopicId = 1 GROUP BY TopicId ORDER BY `date`, Post.id ASC;
+                "SELECT DISTINCT Post.id AS pId, Topic.Id AS tId, Forum.id AS fId, Forum.title AS forumName, Topic.title AS tTitle, name, username, `text`, `date`, count(Post.id) AS likes FROM Post " +
+                        "JOIN Topic ON Post.TopicId = Topic.id JOIN Person ON Post.PersonId = Person.id JOIN Forum ON Topic.ForumId = Forum.id " +
+                        "LEFT JOIN LikedPost ON LikedPost.PostId = Post.id " +
+                        "WHERE TopicId = ? GROUP BY Post.id " +
+                        "ORDER BY `date` ASC, Post.id ASC;";
 
-        // tries communicating with the database.
-        try (PreparedStatement ascendingPostsOfTopicP = c.prepareStatement(ascendingPostsOfTopicSTMT);
-             PreparedStatement forumIdP = c.prepareStatement(topicInfoSTMT)) {
-            // sets all the '?' to be the topicId.
-            forumIdP.setLong(1, topicId);
-            ascendingPostsOfTopicP.setLong(1, topicId);
+        try (PreparedStatement p = c.prepareStatement(ascendingPostsOfTopicSTMT)) {
+            p.setLong(1, topicId);
+            ResultSet rs = p.executeQuery();
 
-            // catches all the ResultSets of each executed query.
-            ResultSet forumIdRS = forumIdP.executeQuery();
-            ResultSet ascendingPostsOfTopicRS = ascendingPostsOfTopicP.executeQuery();
-
-            // gets the ints or Strings out of the ResultSets.
-            long forumId = forumIdRS.getLong("forumId");
-            String forumName = forumIdRS.getString("forumName");
-            String title = forumIdRS.getString("title");
+            long forumId = rs.getLong("fId");
+            String forumName = rs.getString("forumName");
+            String title = rs.getString("tTitle");
 
 
-            for(int postNumber = 1; ascendingPostsOfTopicRS.next(); postNumber++) {
+            for(int postNumber = 1; rs.next(); postNumber++) {
                 System.out.println("ENTERING FOR LOOP");
 
                 posts.add(new PostView(
                         forumId,
                         topicId,
                         postNumber, // int postNumber
-                        ascendingPostsOfTopicRS.getString("name"), // String authorName
-                        ascendingPostsOfTopicRS.getString("username"), // String authorUserName
-                        ascendingPostsOfTopicRS.getString("text"), // String text
-                        ascendingPostsOfTopicRS.getInt("date"),
-                        ascendingPostsOfTopicRS.getInt("likes") // likes of Post
+                        rs.getString("name"), // String authorName
+                        rs.getString("username"), // String authorUserName
+                        rs.getString("text"), // String text
+                        rs.getInt("date"),
+                        rs.getInt("likes") // likes of Post
                         )
                 );
 
-//                System.out.println("Adding PostView during getTopic()... " +
-//                        "postNumber = " + String.valueOf(postNumber) + "; " +
-//                        "author = " + rs.getString("name") + "; " +
-//                        "text = " + rs.getString("text") + "; " +
-//                        "postedAt = " + rs.getInt("date"));
+                System.out.println("Adding PostView during getTopic()... " +
+                        "postNumber = " + String.valueOf(postNumber) + "; " +
+                        "author = " + rs.getString("name") + "; " +
+                        "text = " + rs.getString("text") + "; " +
+                        "postedAt = " + rs.getInt("date"));
             }
 
             return Result.success(new TopicView(forumId, topicId, forumName, title, posts, page));

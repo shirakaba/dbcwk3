@@ -185,7 +185,7 @@ public class API implements APIProvider {
      */
 
     // TODO: what if topicId doesn't exist?
-    // To Jamie [FINISHED, seems to work on website]
+    // To Jamie [FINISHED, tested]
     @Override
     public Result<PostView> getLatestPost(long topicId) {
         final String latestPostSTMT =
@@ -198,25 +198,21 @@ public class API implements APIProvider {
                 "LIMIT 1;";
 
         // TODO: generalise this count statement for re-use in countPostsInTopic().
-        final String likesSTMT =
-                "SELECT count(*) as likes FROM LikedTopic WHERE TopicId = ?;";
+        final String likesSTMT = "SELECT count(*) as likes FROM LikedTopic WHERE TopicId = ?;";
 
-        // tries communicating with the database.
         try (PreparedStatement latestPostP = c.prepareStatement(latestPostSTMT);
              PreparedStatement likesP = c.prepareStatement(likesSTMT)) {
-            latestPostP.setString(1, String.valueOf(topicId));
-            likesP.setString(1, String.valueOf(topicId));
+            latestPostP.setLong(1, topicId);
+            likesP.setLong(1, topicId);
 
-            // catches all the ResultSets of each executed query.
-            ResultSet latestPostRS = latestPostP.executeQuery(),
-                    likesRS = likesP.executeQuery();
+            ResultSet latestPostRS = latestPostP.executeQuery(), likesRS = likesP.executeQuery();
 
-            System.out.println(String.format("Getting LatestPost...\n" +
-                    "forumId = %d; \ntopicId = %d; \npostNumber = %d; \nauthorName = %s; \n" +
-                    "authorUserName = %s; \ntext = %s; \npostedAt = %d; \nlikes = %d.",
-                    latestPostRS.getInt("forumId"), topicId, latestPostRS.getInt("postNumber"),
-                    latestPostRS.getString("name"), latestPostRS.getString("username"),
-                    latestPostRS.getString("text"), latestPostRS.getInt("date"), likesRS.getInt("likes")));
+//            System.out.println(String.format("Getting LatestPost...\n" +
+//                    "forumId = %d; \ntopicId = %d; \npostNumber = %d; \nauthorName = %s; \n" +
+//                    "authorUserName = %s; \ntext = %s; \npostedAt = %d; \nlikes = %d.",
+//                    latestPostRS.getInt("forumId"), topicId, latestPostRS.getInt("postNumber"),
+//                    latestPostRS.getString("name"), latestPostRS.getString("username"),
+//                    latestPostRS.getString("text"), latestPostRS.getInt("date"), likesRS.getInt("likes")));
 
             return Result.success(new PostView(
                     latestPostRS.getInt("forumId"), topicId, latestPostRS.getInt("postNumber"),

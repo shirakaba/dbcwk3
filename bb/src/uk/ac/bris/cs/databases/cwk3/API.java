@@ -96,7 +96,7 @@ public class API implements APIProvider {
                     rs.getString("studentId")));
         } catch (SQLException e) {
             e.printStackTrace();
-            return Result.fatal(e.getMessage()); // TODO: what does he mean by "failure (or fatal on a database error)"?
+            return Result.fatal(e.getMessage());
         }
     }
 
@@ -198,6 +198,8 @@ public class API implements APIProvider {
                 "WHERE TopicId = ? ORDER BY `date` ASC;";
 
         try (PreparedStatement p = c.prepareStatement(STMT)) {
+            if(validateTopicId(topicId) == null) return Result.failure("topicId did not exist.");
+            
             p.setString(1, String.valueOf(topicId));
             ResultSet rs = p.executeQuery();
 

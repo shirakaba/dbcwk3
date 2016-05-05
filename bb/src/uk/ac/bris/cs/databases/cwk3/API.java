@@ -759,6 +759,7 @@ public class API implements APIProvider {
   /*  public AdvancedPersonView(String name, String username, String studentId,
             int topicLikes, int postLikes, List<TopicSummaryView> favourites)*/
 
+    // TODO: this isn't working because getTopicSummaryView() isn't working.
     @Override
     public Result<AdvancedPersonView> getAdvancedPersonView(String username) {
         final String STMT = "SELECT name, username, studentId FROM Person WHERE username = ?;";
@@ -780,9 +781,6 @@ public class API implements APIProvider {
                     countRowsOfTable(rs.getString("username"), CountRowsOfPersonMode.PERSON_FAVOURITES),
 		            getTopicSummaryView(username)));
         } catch (SQLException e) {
-            e.printStackTrace();
-            return Result.fatal(e.getMessage());
-        } catch (Exception e){
             e.printStackTrace();
             return Result.fatal(e.getMessage());
         }
@@ -826,6 +824,7 @@ public class API implements APIProvider {
         }
     }
 
+    //TODO: this isn't working because rs.getLong() is referring to topicId; it likely needs to refer to Topic.id. Others may also need fixing.
     //expects prior validation of username :)
     private ArrayList<TopicSummaryView> getTopicSummaryView (String username) throws SQLException {
         ArrayList<TopicSummaryView> list = new ArrayList<>();
@@ -945,13 +944,22 @@ public class API implements APIProvider {
     public Result<AdvancedForumView> getAdvancedForum(long id) {
         throw new UnsupportedOperationException("Not supported yet.");
 //        final String STMT =
-//                "SELECT Post.id AS pId, Post.date, Topic.id AS tId, Topic.title, " +
-//                        "count(LikedTopic.TopicId) AS topicLikes, count(Post.TopicId) AS postCnt FROM Forum " +
+//                "SELECT Post.date  FROM Forum  " +
+//                        "JOIN Topic ON Forum.id = Topic.ForumId " +
+//                        "LEFT JOIN Post ON Post.TopicId = Topic.id " +
+//                        "LEFT JOIN LikedTopic ON LikedTopic.TopicId = Topic.id " +
+//                        "" +
+////                "JOIN Topic ON Forum.id = Topic.ForumId " +
+//                "WHERE Topic.id IN  " +
+//                        // list of all latest posted-into Topics in a Forum:
+//                "(SELECT Topic.id " +
+////                        ", count(LikedTopic.TopicId) AS topicLikes, count(Post.TopicId) AS postCnt " +
+//                "FROM Forum " +
 //                "JOIN Topic ON Forum.id = Topic.ForumId " +
 //                "LEFT JOIN Post ON Post.TopicId = Topic.id " +
 //                "LEFT JOIN LikedTopic ON LikedTopic.TopicId = Topic.id " +
-//                "WHERE Topic.ForumId = ? GROUP BY Topic.id, Post.id " +
-//                "ORDER BY Post.date DESC, Post.id DESC;";
+//                "WHERE Topic.ForumId = ? GROUP BY Topic.id " +
+//                "ORDER BY Post.date DESC, Post.id DESC);";
 //        List<TopicSummaryView> topics = new ArrayList<>();
 //        try (PreparedStatement p = c.prepareStatement(STMT)) {
 //            String forumTitle = validateForumId(id);
@@ -961,8 +969,8 @@ public class API implements APIProvider {
 //            ResultSet rs = p.executeQuery();
 //
 //            while (rs.next()) topics.add(new TopicSummaryView(
-//                    rs.getLong("Topic.id"), id, rs.getString("Topic.title"),
-//                    // int postCount, int created, rs.getInt("Post.date"), String lastPostName, rs.getInt("topicLikes"), String creatorName, String creatorUserName
+//                            rs.getLong("Topic.id"), id, rs.getString("Topic.title"),
+//                            // int postCount, int created, rs.getInt("Post.date"), String lastPostName, rs.getInt("topicLikes"), String creatorName, String creatorUserName
 //                    )
 //            );
 //

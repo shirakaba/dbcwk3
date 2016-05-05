@@ -312,25 +312,31 @@ public class API implements APIProvider {
 //        }
 //    }
 
-    //TO ALEX - DONE [fixed liberally by Jamie (sorry)]
+    //TO ALEX - DONE [fixed liberally by Jamie (sorry)] - accept empty forum now 
     @Override
     public Result<List<ForumSummaryView>> getForums() {
         List<ForumSummaryView> ll = new ArrayList<>();
         final String STMT =
                 "SELECT Forum.id AS fId, Forum.title AS fTitle, Topic.id AS tId, Topic.title AS tTitle FROM Forum " +
-                        "JOIN Topic ON Topic.ForumId = Forum.id " +
-                        "JOIN Post ON Post.TopicId = Topic.id " +
+                        "LEFT JOIN Topic ON Topic.ForumId = Forum.id " +
+                        "LEFT JOIN Post ON Post.TopicId = Topic.id " +
                         "GROUP BY Forum.id " +
                         "ORDER BY Forum.title ASC, `date` DESC, Post.id DESC;";
 
         try (PreparedStatement p = c.prepareStatement(STMT)) {
             ResultSet rs = p.executeQuery();
-
+            
             while (rs.next()) {
-                ll.add(new ForumSummaryView(rs.getLong("fId"), rs.getString("fTitle"),
-                        // This is the the topic most recently posted in.
+                String title = rs.getString("tTitle");
+                if (title == null) {
+                    ll.add(new ForumSummaryView(rs.getLong("fId"), rs.getString("fTitle"), null));
+    
+                } else {
+                    ll.add(new ForumSummaryView(rs.getLong("fId"), rs.getString("fTitle"),
+                    // This is the the topic most recently posted in.
                         new SimpleTopicSummaryView(rs.getLong("tId"), rs.getLong("fId"), rs.getString("tTitle"))
-                ));
+                    ));
+                }
             }
 //            return Result.success(ll);
         } catch (SQLException e) {
@@ -772,7 +778,14 @@ public class API implements APIProvider {
 
     @Override
     public Result<List<AdvancedForumSummaryView>> getAdvancedForums() {
+        /*final String STMT = "SELECT Forum.id, title, topic FROM Forum ORDER BY title ASC;";
+        List<AdvancedForumSummaryView> = new ArrayList<> ();
+        
+        try (PreparedStatement p = c.prepareStatement(STMT)) {
+            p.setString(1, id)
+        }*/
         throw new UnsupportedOperationException("Not supported yet.");
+        
     }
 
 	//TO ALEX

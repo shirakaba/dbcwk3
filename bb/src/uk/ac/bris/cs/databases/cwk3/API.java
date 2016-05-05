@@ -102,7 +102,6 @@ public class API implements APIProvider {
                 list.add(new SimpleForumSummaryView(rs.getLong("id"), rs.getString("title")));
             }
 
-//            return Result.success(list);
         } catch (SQLException e) {
 //            return Result.fatal(e.getMessage()); // TODO: need any exception handling here?
         }
@@ -352,7 +351,22 @@ public class API implements APIProvider {
     @Override
     public Result createForum(String title) {
         final String STMT = "SELECT title FROM Forum WHERE title = ?;";
-        return Result.failure("not done");
+        try (PreparedStatement p = c.prepareStatement(STMT)) {
+            p.setString(1, title);
+            ResultSet rs = p.executeQuery();
+            if (title.isEmpty()) {
+                return Result.failure ("Null");
+            } else if (rs.next()) {
+                return Result.failure ("Title already existed");
+            } else {
+                p.executeQuery("INSERT INTO Forum title VALUES ?;");
+                p.setString(1, title);
+                p.executeUpdate();
+            }
+        } catch (SQLException e) {
+            return Result.fatal(e.getMessage());
+        }
+        return Result.success();
     }
 
 //

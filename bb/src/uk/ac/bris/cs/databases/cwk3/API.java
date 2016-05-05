@@ -550,46 +550,39 @@ public class API implements APIProvider {
 
     }
 
+    private enum LikeOrFavourite {
+        LIKE,
+        FAVOURITE;
+    }
 
     /**
-     * Checks whether a Topic has already been liked by a given person in the LikedTopic table.
+     * Checks 1) whether a Topic has already been liked by a given person in the LikedTopic table,
+     * or     2) whether a Topic has already been favourited by a given person in the FavouritedTopic table.
      *
      * @param TopicId      - TopicId to check for the existence of in table.
      * @param PersonId     - PersonId to check for the existence of in table.
-     * @param intendToLike - true if intending to like; false if intending to unlike.
+     * @param intendToApply - true if intending to apply like/favourite; false if intending to remove like/favourite.
+     * @param mode - LikeOrFavourite.LIKE for like; LikeOrFavourite.FAVOURITE for favourite.
      * @return Returns true/false concerning whether an input Person id has already liked an the input Topic id.
      */
-    private boolean likeNeedsChanging(long TopicId, long PersonId, boolean intendToLike) throws SQLException {
-        boolean alreadyLikedTopic = false;
-        final String STMT = "SELECT TopicId, PersonId FROM LikedTopic WHERE TopicId = ? AND PersonId = ?;";
+    private boolean likeOrFavouriteNeedsChanging(long TopicId, long PersonId, boolean intendToApply, LikeOrFavourite mode) throws SQLException {
+        boolean topicAlreadyActedUpon = false;
+        final String whichTable = mode.equals(LikeOrFavourite.FAVOURITE) ? "FavouritedTopic" : "LikedTopic";
+        final String STMT = String.format("SELECT TopicId, PersonId FROM %s WHERE TopicId = ? AND PersonId = ?;", whichTable);
 
         try (PreparedStatement p = c.prepareStatement(STMT)) {
             p.setLong(1, TopicId);
             p.setLong(2, PersonId);
 
             ResultSet rs = p.executeQuery();
-            if (rs.next()) alreadyLikedTopic = true;
+            if (rs.next()) topicAlreadyActedUpon = true;
 
-            if (intendToLike) if (alreadyLikedTopic) return false;
-            else if (!alreadyLikedTopic) return false;
-
-            return true;
-        }
-    }
-
-    private boolean favouriteNeedsChanging(long TopicId, long PersonId, boolean intendToFavourite) throws SQLException {
-        boolean alreadyFavouritedTopic = false;
-        final String STMT = "SELECT TopicId, PersonId FROM FavouriteTopic WHERE TopicId = ? AND PersonId = ?;";
-
-        try (PreparedStatement p = c.prepareStatement(STMT)) {
-            p.setLong(1, TopicId);
-            p.setLong(2, PersonId);
-
-            ResultSet rs = p.executeQuery();
-            if (rs.next()) alreadyFavouritedTopic = true;
-
-            if (intendToFavourite) if (alreadyFavouritedTopic) return false;
-            else if (!alreadyFavouritedTopic) return false;
+            if (intendToApply) {
+                if (topicAlreadyActedUpon) return false;
+            }
+            else {
+                if (!topicAlreadyActedUpon) return false;
+            }
 
             return true;
         }
@@ -606,7 +599,7 @@ public class API implements APIProvider {
             Long personId = validateUsername(username);
             if (personId == null) return Result.failure("username did not exist.");
             if (validateTopicId(topicId) == null) return Result.failure("topicId did not exist.");
-            if (!likeNeedsChanging(topicId, personId, like)) return Result.success();
+            if (!likeOrFavouriteNeedsChanging(topicId, personId, like, LikeOrFavourite.LIKE)) return Result.success();
 
             p1.setLong(1, topicId);
             p1.setLong(2, personId);
@@ -645,7 +638,7 @@ public class API implements APIProvider {
             Long personId = validateUsername(username);
             if (personId == null) return Result.failure("username did not exist.");
             if (validateTopicId(topicId) == null) return Result.failure("topicId did not exist.");
-            if (!favouriteNeedsChanging(topicId, personId, favourite)) return Result.success();
+            if (!likeOrFavouriteNeedsChanging(topicId, personId, favourite, LikeOrFavourite.FAVOURITE)) return Result.success();
 
             p1.setLong(1, topicId);
             p1.setLong(2, personId);
@@ -752,7 +745,7 @@ public class API implements APIProvider {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
-    // TODO: this shouldn't be at all hard - just reference likeTopic() and generalise the likeNeedsChanging() private method.
+    // TODO: this shouldn't be at all hard - just reference likeTopic() and generalise the likeOrFavouriteNeedsChanging() private method.
     @Override
     public Result likePost(String username, long topicId, int post, boolean like) {
         throw new UnsupportedOperationException("Not supported yet.");

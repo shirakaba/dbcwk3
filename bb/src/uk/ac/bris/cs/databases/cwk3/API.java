@@ -79,16 +79,18 @@ public class API implements APIProvider {
         }
     }
 
-    // implemented by Phan
+    // implemented by Phan, fixed
     @Override
     public Result<List<SimpleForumSummaryView>> getSimpleForums() {
-        final String STMT = "SELECT id FROM Forum ORDER BY title ACS";
+        final String STMT = "SELECT id, title FROM Forum ORDER BY title ASC;";
         List<SimpleForumSummaryView> list = new ArrayList<>();
         try (PreparedStatement p = c.prepareStatement(STMT)) {
             ResultSet rs = p.executeQuery();
             while (rs.next()) {
                 SimpleForumSummaryView fv = new SimpleForumSummaryView(rs.getLong("id"), rs.getString("title"));
+		list.add(fv);
             }
+	    
             return Result.success(list);
         } catch (SQLException e) {
             return Result.fatal(e.getMessage());

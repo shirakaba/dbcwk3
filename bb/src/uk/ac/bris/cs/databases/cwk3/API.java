@@ -817,8 +817,8 @@ public class API implements APIProvider {
 
             int topicLikedCount = countRowsOfTopicTable(rs.getLong("topicId"), CountRowsOfTableMode.LIKES);
             int topicPostCount = countRowsOfTopicTable(rs.getLong("topicId"), CountRowsOfTableMode.POSTS);
-            String[] latestPostDateName = getLatestPostDateName(rs.getLong("topicId"));
-            String[] topicCreatedDatePerson = getTopicCreatedDatePerson(rs.getLong("topicId"));
+            String[] latestPostDateName = getExtremeDatePoster(rs.getLong("topicId"), getExtremeDatePosterMode.NEWEST);
+            String[] topicCreatedDatePerson = getExtremeDatePoster(rs.getLong("topicId"), getExtremeDatePosterMode.CREATION);
    
             while (rs.next()) {
                 list.add(new TopicSummaryView(rs.getLong("topicId"),
@@ -837,43 +837,54 @@ public class API implements APIProvider {
         }
     }
 
-    // requires topic to be validated beforehand
-    // we've been asked not to throw unusual Exceptions, and that line stops it from compiling anyway
-    private String[] getTopicCreatedDatePerson(long topicId) throws SQLException {
-//        if (validateTopicId(topicId) == null) throw new Exception("TopicId did not exist.");
 
-        final String STMT = "SELECT date, Person.name AS name, Person.username AS username FROM Topic " +
-                            "JOIN Post ON Post.TopicId = Topic.id " +
-                            "JOIN Person ON PersonId = Person.id " +
-                            "WHERE Topic.id = ? " +
-                            "ORDER BY `date` ASC LIMIT 1;";
-
-        try(PreparedStatement p = c.prepareStatement(STMT)){
-            p.setLong(1, topicId);
-
-            ResultSet rs = p.executeQuery();
-
-            return new String[]{String.valueOf(rs.getInt(1)), rs.getString("name"), rs.getString("username")};
-        }
+    /**
+     * Switches the mode of getExtremeDatePoster() to sorting by date ASC (CREATION) or DESC (NEWEST).
+     */
+    private enum getExtremeDatePosterMode {
+        CREATION,
+        NEWEST
     }
 
-    // requires topic to be validated beforehand
+    // TODO: requires topic to be validated beforehand
+    // TODO: protect against failure when returning.
     // we've been asked not to throw unusual Exceptions, and that line stops it from compiling anyway
-    private String[] getLatestPostDateName(long topicId) throws SQLException {
+    /**
+     * Requires a valid topicId.
+     * Gets the date, name, and username of which Person made the earliest or last Post in the specified Topic.
+     * @param topicId - the Topic id to search for. Must be valid.
+     * @param mode - CREATION: date of first Post in Topic (made at Topic creation time).  NEWEST: date of newest Post in Topic.
+     * @return returns a String array. In slot 0, the date. In slot 1, the name. In slot 2, the username.
+     *         Uncharacterised behaviour if failure.
+     */
+    private String[] getExtremeDatePoster(long topicId, getExtremeDatePosterMode mode) throws SQLException {
 //        if (validateTopicId(topicId) == null) throw new Exception("TopicId did not exist.");
 
-        final String STMT = "SELECT date, Person.name AS name FROM Topic " +
-                            "JOIN Post ON Post.TopicId = Topic.id " +
-                            "JOIN Person ON PersonId = Person.id " +
-                            "WHERE Topic.id = ?" +
-                            "ORDER BY `date` DESC LIMIT 1;";
+        final String sort;
+
+        switch(mode){
+            case CREATION:
+                sort = "ASC";
+                break;
+            case NEWEST:
+                sort = "DESC";
+                break;
+            default:
+                throw new UnsupportedOperationException("unimplemented branch of getExtremeDatePoster reached");
+        }
+
+        final String STMT = String.format("SELECT `date`, Person.name AS name, Person.username AS username FROM Topic " +
+                "JOIN Post ON Post.TopicId = Topic.id " +
+                "JOIN Person ON PersonId = Person.id " +
+                "WHERE Topic.id = ?" +
+                "ORDER BY `date` %s LIMIT 1;", sort);
 
         try(PreparedStatement p = c.prepareStatement(STMT)) {
             p.setLong(1, topicId);
 
             ResultSet rs = p.executeQuery();
 
-            return new String[]{String.valueOf(rs.getInt(1)), rs.getString("name")};
+            return new String[]{String.valueOf(rs.getInt(1)), rs.getString("name"), rs.getString("username")};
         }
     }
 

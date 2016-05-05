@@ -115,7 +115,7 @@ public class API implements APIProvider {
 
         try {
             if(validateTopicId(topicId) == null) return Result.failure("topic didn't exist.");
-            posts = countRowsOfTable(topicId, CountRowsOfTopicMode.TOPIC_POSTS);
+            posts = countRowsOfTopicTable(topicId, CountRowsOfTableMode.POSTS);
         } catch (SQLException e) {
 //            return Result.failure(e.getMessage()); // TODO: need any exception handling here?
         }
@@ -213,6 +213,45 @@ public class API implements APIProvider {
         }
     }
 
+    /**
+     * Switches the mode of countRowsOfTopicTable() to counting Likes (LIKES) or Posts (POSTS).
+     */
+    private enum CountRowsOfTableMode {
+        LIKES,
+        POSTS
+    }
+
+    // apparently requires validation of topicId.
+    /**
+     * Counts the number of entries (rows) in a table detailing the Posts Or Likes for a  given Topic.
+     *
+     * @param topicId - the id to count Posts/Likes for.
+     * @param mode - counts Posts if CountRowsOfTableMode.POSTS; otherwise, counts LIKES.
+     * @return the counted number of Posts/Likes.. Otherwise, null.
+     */
+    private int countRowsOfTopicTable(long topicId, CountRowsOfTableMode mode) throws SQLException {
+        final String whichTable;
+
+        switch (mode) {
+            case LIKES:
+                whichTable = "SELECT count(*) AS count FROM Topic JOIN LikedTopic ON Topic.id = LikedTopic.TopicId WHERE Topic.id = ?;";
+                break;
+            case POSTS:
+                whichTable = "SELECT count(*) AS count FROM Topic JOIN Post ON Post.TopicId = Topic.id WHERE Topic.id = ?;";
+                break;
+            default:
+                throw new UnsupportedOperationException("An unimplemented branch of the countRowsOfTable method was used.");
+        }
+
+        try (PreparedStatement p = c.prepareStatement(whichTable)) {
+            p.setLong(1, topicId);
+
+            ResultSet rs = p.executeQuery();
+
+            return rs.getInt("count");
+        }
+    }
+
     /* 
      * Level 2 - standard difficulty. Most groups should get all of these.
      * They require a little bit more thought than the level 1 API though.
@@ -230,54 +269,26 @@ public class API implements APIProvider {
                 "ORDER BY `date` DESC, Post.id DESC " + // orders first by date, then by size (newness) of id in case of same-day post
                 "LIMIT 1;";
 
-        try (PreparedStatement latestPostP = c.prepareStatement(latestPostSTMT)) {
+        // TODO: generalise this count statement for re-use in countPostsInTopic().
+        final String likesSTMT = "SELECT count(*) AS likes FROM LikedTopic WHERE TopicId = ?;";
+
+        try (PreparedStatement latestPostP = c.prepareStatement(latestPostSTMT);
+             PreparedStatement likesP = c.prepareStatement(likesSTMT)) {
             if (validateTopicId(topicId) == null) return Result.failure("topicId did not exist.");
 
             latestPostP.setLong(1, topicId);
+            likesP.setLong(1, topicId);
 
-            ResultSet latestPostRS = latestPostP.executeQuery();
+            ResultSet latestPostRS = latestPostP.executeQuery(), likesRS = likesP.executeQuery();
 
             return Result.success(new PostView(
                     latestPostRS.getInt("forumId"), topicId, latestPostRS.getInt("postNumber"),
                     latestPostRS.getString("name"), latestPostRS.getString("username"),
-                    latestPostRS.getString("text"), latestPostRS.getInt("date"), countRowsOfTable(topicId, CountRowsOfTopicMode.TOPIC_LIKES)));
+                    latestPostRS.getString("text"), latestPostRS.getInt("date"), likesRS.getInt("likes")));
         } catch (SQLException e) {
             return Result.fatal(e.getMessage());
         }
     }
-
-//    //TO ALEX - DONE [note: this had looping SQL queries, non-closing preparedStatements and isn't ordered by title]
-//    @Override
-//    public Result<List<ForumSummaryView>> getForums() {
-//        final String STMT = "SELECT * FROM Forum;";
-//        List<ForumSummaryView> ll = new ArrayList<>();
-//        SimpleTopicSummaryView stsv;
-//
-//        try (PreparedStatement p = c.prepareStatement(STMT)) {
-//            ResultSet rs = p.executeQuery();
-//            String latestTopicIdSTMT;
-//            while (rs.next()) {
-//                long currForumId = rs.getInt(1);
-//                latestTopicIdSTMT = "SELECT Topic.id, Topic.title From Topic" +
-//                        " JOIN Post ON Post.TopicId = Topic.id " +
-//                        " WHERE ForumId = " + currForumId + " ORDER BY date LIMIT 1;";
-//
-//                PreparedStatement p1 = c.prepareStatement(latestTopicIdSTMT);
-//                ResultSet rs1 = p1.executeQuery();
-//                stsv = new SimpleTopicSummaryView(rs1.getLong(1), currForumId, rs1.getString("title"));
-//		/*System.out.println(rs.getLong(1) + " " + rs.getString("title") + " " + stsv.getTitle());*/
-//
-//                ForumSummaryView fsv = new ForumSummaryView(rs.getLong(1),
-//                        rs.getString("title"),
-//                        stsv);
-//                ll.add(fsv);
-//            }
-//            return Result.success(ll);
-//        } catch (SQLException e) {
-//            e.printStackTrace();
-//            return Result.fatal(e.getMessage());
-//        }
-//    }
 
     //TO ALEX - DONE [fixed liberally by Jamie (sorry)] - accept empty forum now 
     @Override
@@ -352,38 +363,6 @@ public class API implements APIProvider {
         }
     }
 
-//
-//    //TO ALEX - DONE
-//    @Override
-//    public Result createPost(long topicId, String username, String text) {
-//
-//        long dateInSecs = new Date().getTime() / MS_TO_SECONDS;
-//
-//        final String getPersonIdSTMT = "SELECT id FROM Person WHERE username = ?;";
-//        long personId;
-//        try (PreparedStatement p = c.prepareStatement(getPersonIdSTMT)) {
-//            p.setString(1, username);
-//            ResultSet rs = p.executeQuery();
-//            personId = rs.getLong(1);
-//
-//
-//            final String STMT = "INSERT INTO Post (date,text,PersonId,TopicId) VALUES (?, ?, ?, ?);";
-//
-//            PreparedStatement p1 = c.prepareStatement(STMT);
-//
-//            p1.setLong(1, dateInSecs);
-//            p1.setString(2, text);
-//            p1.setLong(3, personId);
-//            p1.setLong(4, topicId);
-//
-//            p1.execute();
-//            c.commit();
-//        } catch (SQLException e) {
-//            return Result.fatal(e.getMessage());
-//        }
-//        return Result.success();
-//    }
-
 
     //TO ALEX - DONE [closed second preparedStatement and - Jamie; tested]
     @Override
@@ -453,13 +432,13 @@ public class API implements APIProvider {
     public Result<ForumView> getForum(long id) {
         final String STMT = "SELECT Topic.id AS topicId, Topic.title AS topicTitle "
                 + "FROM Forum INNER JOIN Topic ON Forum.id = Topic.ForumId "
-                + "WHERE ForumId = ?;";
+                + "WHERE forumId = ?;";
         List<SimpleTopicSummaryView> topics = new ArrayList<>();
         try (PreparedStatement p = c.prepareStatement(STMT)) {
             String forumTitle = validateForumId(id);
             if (forumTitle == null) return Result.failure("Forum id did not exist, or forum has no topics under it (illegal).");
 
-            p.setLong(1, id);
+            p.setLong(1, (int) id);
             ResultSet rs = p.executeQuery();
 
             while (rs.next()) topics.add(new SimpleTopicSummaryView(rs.getLong("topicId"), id, rs.getString("topicTitle")));
@@ -514,11 +493,11 @@ public class API implements APIProvider {
 
         final String ascendingPostsOfTopicSTMT = String.format(
                 "SELECT DISTINCT Post.id AS pId, Topic.Id AS tId, Forum.id AS fId, Forum.title AS forumName, " +
-                "Topic.title AS tTitle, name, username, `text`, `date`, count(Post.id) AS likes FROM Post " +
-                "JOIN Topic ON Post.TopicId = Topic.id JOIN Person ON Post.PersonId = Person.id JOIN Forum ON Topic.ForumId = Forum.id " +
-                "LEFT JOIN LikedPost ON LikedPost.PostId = Post.id " +
-                "WHERE TopicId = ? GROUP BY Post.id " +
-                "ORDER BY `date` ASC, Post.id ASC %s;", limiter);
+                        "Topic.title AS tTitle, name, username, `text`, `date`, count(Post.id) AS likes FROM Post " +
+                        "JOIN Topic ON Post.TopicId = Topic.id JOIN Person ON Post.PersonId = Person.id JOIN Forum ON Topic.ForumId = Forum.id " +
+                        "LEFT JOIN LikedPost ON LikedPost.PostId = Post.id " +
+                        "WHERE TopicId = ? GROUP BY Post.id " +
+                        "ORDER BY `date` ASC, Post.id ASC %s;", limiter);
 
         try (PreparedStatement p = c.prepareStatement(ascendingPostsOfTopicSTMT)) {
             if (validateTopicId(topicId) == null) return Result.failure("Topic id did not exist.");
@@ -759,7 +738,7 @@ public class API implements APIProvider {
   /*  public AdvancedPersonView(String name, String username, String studentId,
             int topicLikes, int postLikes, List<TopicSummaryView> favourites)*/
 
-    // TODO: this isn't working because getTopicSummaryView() isn't working.
+    // TODO: test this
     @Override
     public Result<AdvancedPersonView> getAdvancedPersonView(String username) {
         final String STMT = "SELECT name, username, studentId FROM Person WHERE username = ?;";
@@ -772,13 +751,13 @@ public class API implements APIProvider {
             p.setString(1, username);
 
             ResultSet rs = p.executeQuery();
-            
+
             return Result.success(new AdvancedPersonView(
                     rs.getString("name"),
                     rs.getString("username"),
                     rs.getString("studentId"),
-                    countRowsOfTable(rs.getString("username"), CountRowsOfPersonMode.PERSON_LIKES),
-                    countRowsOfTable(rs.getString("username"), CountRowsOfPersonMode.PERSON_FAVOURITES),
+                    countRowsOfTable(username, CountRowsOfPersonMode.PERSON_LIKES),
+                    countRowsOfTable(username, CountRowsOfPersonMode.PERSON_FAVOURITES),
 		            getTopicSummaryView(username)));
         } catch (SQLException e) {
             e.printStackTrace();
@@ -824,29 +803,30 @@ public class API implements APIProvider {
         }
     }
 
-    //TODO: this isn't working because rs.getLong() is referring to topicId; it likely needs to refer to Topic.id. Others may also need fixing.
+    // it is not the responsibility of sub-methods to catch exceptions. These are all caught at the highest level.
     //expects prior validation of username :)
-    private ArrayList<TopicSummaryView> getTopicSummaryView (String username) throws SQLException {
+    private ArrayList<TopicSummaryView> getTopicSummaryView(String username) throws SQLException{
         ArrayList<TopicSummaryView> list = new ArrayList<>();
-//        final String STMT = "SELECT topicId, forumId, title, name, username FROM Person " +
-//                            "JOIN FavouritedTopic ON id = PersonId WHERE username = ? ;";
-        final String STMT = "SELECT Topic.Id, Forum.Id, Topic.title, Person.name, Person.username FROM Person " +
-                            "JOIN FavouritedTopic ON Person.id = FavouritedTopic.PersonId " +
-                            "JOIN Post ON Post.PersonId = Person.id " +
-                            "JOIN Topic ON Topic.id = Post.TopicId " +
-                            "JOIN Forum ON Forum.id = ForumId " +
-                            "WHERE username = ?;";
+        final String STMT = "SELECT Topic.Id AS topicId, Forum.Id AS forumId, " +
+                            "Topic.title AS title, Person.name AS name, Person.username AS username " +
+                            "FROM Person JOIN FavouritedTopic ON Person.id = FavouritedTopic.PersonId " +
+                            "JOIN Post ON Post.PersonId = Person.id JOIN Topic ON Topic.id = Post.TopicId " +
+                            "JOIN Forum ON Forum.id = ForumId WHERE username = ?;";
 
         try (PreparedStatement p = c.prepareStatement(STMT)) {
+
             p.setString(1, username);
 
             ResultSet rs = p.executeQuery();
+            
+            //check if result set is empty
+            if (!rs.isBeforeFirst() ) return new ArrayList<>();
 
-            int topicLikedCount = countRowsOfTable(rs.getLong("topicId"), CountRowsOfTopicMode.TOPIC_LIKES);
-            int topicPostCount = countRowsOfTable(rs.getLong("topicId"), CountRowsOfTopicMode.TOPIC_POSTS);
+            int topicLikedCount = countRowsOfTopicTable(rs.getLong("topicId"), CountRowsOfTableMode.LIKES);
+            int topicPostCount = countRowsOfTopicTable(rs.getLong("topicId"), CountRowsOfTableMode.POSTS);
             String[] latestPostDateName = getLatestPostDateName(rs.getLong("topicId"));
             String[] topicCreatedDatePerson = getTopicCreatedDatePerson(rs.getLong("topicId"));
-
+   
             while (rs.next()) {
                 list.add(new TopicSummaryView(rs.getLong("topicId"),
                                               rs.getLong("forumId"),
@@ -862,84 +842,49 @@ public class API implements APIProvider {
 
             return list;
         }
-
     }
 
-    //expects prior validation of topic
+    // requires topic to be validated beforehand
+    // we've been asked not to throw unusual Exceptions, and that line stops it from compiling anyway
     private String[] getTopicCreatedDatePerson(long topicId) throws SQLException {
 //        if (validateTopicId(topicId) == null) throw new Exception("TopicId did not exist.");
 
-        final String STMT = "SELECT `date`, Person.name AS name, Person.username AS username FROM Topic " +
+        final String STMT = "SELECT date, Person.name AS name, Person.username AS username FROM Topic " +
                             "JOIN Post ON Post.TopicId = Topic.id " +
                             "JOIN Person ON PersonId = Person.id " +
                             "WHERE Topic.id = ? " +
                             "ORDER BY `date` ASC LIMIT 1;";
-        try (PreparedStatement p = c.prepareStatement(STMT)) {
-            p.setLong(1, topicId);
+        PreparedStatement p = c.prepareStatement(STMT);
 
-            ResultSet rs = p.executeQuery();
+        p.setLong(1, topicId);
 
-            return new String[]{String.valueOf(rs.getInt(1)), rs.getString("name"), rs.getString("username")};
-        }
+        ResultSet rs = p.executeQuery();
+
+        return new String[]{String.valueOf(rs.getInt(1)), rs.getString("name"), rs.getString("username")};
     }
 
-    //expects prior validation of topic
+    // requires topic to be validated beforehand
+    // we've been asked not to throw unusual Exceptions, and that line stops it from compiling anyway
     private String[] getLatestPostDateName(long topicId) throws SQLException {
 //        if (validateTopicId(topicId) == null) throw new Exception("TopicId did not exist.");
 
-        final String STMT = "SELECT `date`, Person.name AS name FROM Topic " +
+        final String STMT = "SELECT date, Person.name AS name FROM Topic " +
                             "JOIN Post ON Post.TopicId = Topic.id " +
                             "JOIN Person ON PersonId = Person.id " +
-                            "WHERE Topic.id = ? " +
+                            "WHERE Topic.id = ?" +
                             "ORDER BY `date` DESC LIMIT 1;";
-        try (PreparedStatement p = c.prepareStatement(STMT)) {
+        PreparedStatement p = c.prepareStatement(STMT);
 
-            p.setLong(1, topicId);
+        p.setLong(1, topicId);
 
-            ResultSet rs = p.executeQuery();
+        ResultSet rs = p.executeQuery();
 
-            return new String[]{String.valueOf(rs.getInt(1)), rs.getString("name")};
-        }  
+        return new String[]{String.valueOf(rs.getInt(1)), rs.getString("name")};
+   
     }
 
-    /**
-     * Switches the mode of countRowsOfTable() to counting Likes (TOPIC_LIKES) or Posts (TOPIC_POSTS).
-     */
-    private enum CountRowsOfTopicMode {
-        TOPIC_LIKES,
-        TOPIC_POSTS
-    }
 
-    /**
-     * Counts the number of entries (rows) in a table detailing the Posts Or Likes for a  given Topic.
-     *
-     * @param topicId - the id to count Posts/Likes for.
-     * @param mode - counts Posts if CountRowsOfTableMode.TOPIC_POSTS; otherwise, counts TOPIC_LIKES.
-     * @return the counted number of Posts/Likes.. Otherwise, null.
-     */
-    private int countRowsOfTable(long topicId, CountRowsOfTopicMode mode) throws SQLException {
-        final String getTopicId;
-
-        switch(mode){
-            case TOPIC_LIKES:
-                getTopicId = "SELECT count(*) AS count FROM LikedTopic JOIN Topic ON TopicId = Topic.id WHERE Topic.id = ?;";
-                break;
-            case TOPIC_POSTS:
-                getTopicId = "SELECT count(*) AS count FROM Topic JOIN Post ON TopicId = Topic.id WHERE TopicId = ?;";
-                break;
-            default:
-                throw new UnsupportedOperationException("An unimplemented branch of the countRowsOfTable method was used.");
-        }
-
-        try (PreparedStatement p = c.prepareStatement(getTopicId)) {
-            p.setLong(1, topicId);
-
-            ResultSet rs = p.executeQuery();
-            return rs.getInt("count");
-        }
-    }
-
-    // TODO: under construction.
+    // not worth doing. Can't figure out how to avoid looped SQL queries.
     @Override
     public Result<AdvancedForumView> getAdvancedForum(long id) {
         throw new UnsupportedOperationException("Not supported yet.");
@@ -965,7 +910,7 @@ public class API implements APIProvider {
 //            String forumTitle = validateForumId(id);
 //            if (forumTitle == null) return Result.failure("Forum id did not exist, or forum has no topics under it (illegal).");
 //
-//            p.setLong(1, id);
+//            p.setLong(1, (int) id);
 //            ResultSet rs = p.executeQuery();
 //
 //            while (rs.next()) topics.add(new TopicSummaryView(

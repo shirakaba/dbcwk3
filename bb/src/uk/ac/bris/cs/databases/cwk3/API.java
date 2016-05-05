@@ -804,6 +804,9 @@ public class API implements APIProvider {
             p.setString(1, username);
 
             ResultSet rs = p.executeQuery();
+
+         
+            
             
             return Result.success(new AdvancedPersonView(
                     rs.getString("name"),
@@ -823,18 +826,20 @@ public class API implements APIProvider {
 
     //expects prior validation of username :)
     private ArrayList<TopicSummaryView> getTopicSummaryView(String username) throws Exception{
-        final String STMT = "SELECT Topic.Id, Forum.Id, Topic.title, Person.name, Person.username FROM Person " +
-                            "JOIN FavouritedTopic ON Person.id = FavouritedTopic.PersonId " +
-                            "JOIN Post ON Post.PersonId = Person.id " +
-                            "JOIN Topic ON Topic.id = Post.TopicId " +
-                            "JOIN Forum ON Forum.id = ForumId " +
-                            "WHERE username = '?';";
+        final String STMT = "SELECT Topic.Id AS topicId, Forum.Id AS forumId, " +
+                            "Topic.title AS title, Person.name AS name, Person.username AS username " +
+                            "FROM Person JOIN FavouritedTopic ON Person.id = FavouritedTopic.PersonId " +
+                            "JOIN Post ON Post.PersonId = Person.id JOIN Topic ON Topic.id = Post.TopicId " +
+                            "JOIN Forum ON Forum.id = ForumId WHERE username = ?;";
 
         try (PreparedStatement p = c.prepareStatement(STMT)) {
 
             p.setString(1, username);
 
             ResultSet rs = p.executeQuery();
+            
+            //check if result set is empty
+            if (!rs.isBeforeFirst() ) {return new ArrayList<TopicSummaryView>();} 
 
             int topicLikedCount = getTopicLikedCount(rs.getLong("topicId"));
             int topicPostCount = getTopicPostCount(rs.getLong("topicId"));
@@ -842,7 +847,7 @@ public class API implements APIProvider {
             String[] topicCreatedDatePerson = getTopicCreatedDatePerson(rs.getLong("topicId"));
 
             ArrayList<TopicSummaryView> list = new ArrayList<TopicSummaryView>();
-
+   
             while (rs.next()) {
                 list.add(new TopicSummaryView(rs.getLong("topicId"),
                                               rs.getLong("forumId"),
@@ -860,88 +865,72 @@ public class API implements APIProvider {
 
         } catch (SQLException e) {
             System.out.println("here1");
+            e.printStackTrace();
             throw e;
-        }           
+        } 
     }
 
     private String[] getTopicCreatedDatePerson(long topicId) throws Exception{
         if (validateTopicId(topicId) == null) throw new Exception("TopicId did not exist.");
 
-        final String STMT = "SELECT date, Person.name, Person.username FROM Topic " +
+        final String STMT = "SELECT date, Person.name AS name, Person.username AS username FROM Topic " +
                             "JOIN Post ON Post.TopicId = Topic.id " +
                             "JOIN Person ON PersonId = Person.id " +
-                            "WHERE Topic.id = 1 " +
+                            "WHERE Topic.id = ? " +
                             "ORDER BY `date` ASC LIMIT 1;";
-        try (PreparedStatement p = c.prepareStatement(STMT)) {
+        PreparedStatement p = c.prepareStatement(STMT);
 
-            p.setLong(1, topicId);
+        p.setLong(1, topicId);
 
-            ResultSet rs = p.executeQuery();
+        ResultSet rs = p.executeQuery();
 
-            return new String[]{String.valueOf(rs.getInt(1)), rs.getString("name"), rs.getString("username")};
-
-        } catch (SQLException e) {
-            System.out.println("here2");
-            throw e;
-        }  
+        return new String[]{String.valueOf(rs.getInt(1)), rs.getString("name"), rs.getString("username")};
     }    
 
     private String[] getLatestPostDateName(long topicId) throws Exception{
         if (validateTopicId(topicId) == null) throw new Exception("TopicId did not exist.");
 
-        final String STMT = "SELECT date, Person.name FROM Topic " +
+        final String STMT = "SELECT date, Person.name AS name FROM Topic " +
                             "JOIN Post ON Post.TopicId = Topic.id " +
                             "JOIN Person ON PersonId = Person.id " +
                             "WHERE Topic.id = ?" +
                             "ORDER BY `date` DESC LIMIT 1;";
-        try (PreparedStatement p = c.prepareStatement(STMT)) {
+        PreparedStatement p = c.prepareStatement(STMT);
 
-            p.setLong(1, topicId);
+        p.setLong(1, topicId);
 
-            ResultSet rs = p.executeQuery();
+        ResultSet rs = p.executeQuery();
 
-            return new String[]{String.valueOf(rs.getInt(1)), rs.getString("name")};
-
-        } catch (SQLException e) {
-            System.out.println("here3");
-            throw e;
-        }  
+        return new String[]{String.valueOf(rs.getInt(1)), rs.getString("name")};
+   
     }
 
     private int getTopicLikedCount(long topicId) throws Exception{
         if (validateTopicId(topicId) == null) throw new Exception("TopicId did not exist.");
         final String STMT = "SELECT COUNT(*) FROM LikedTopic JOIN Topic ON TopicId = Topic.id WHERE Topic.id = ?;";
-        try (PreparedStatement p = c.prepareStatement(STMT)) {
+        PreparedStatement p = c.prepareStatement(STMT);
 
-            p.setLong(1, topicId);
+        p.setLong(1, topicId);
 
-            ResultSet rs = p.executeQuery();
+        ResultSet rs = p.executeQuery();
 
-            return rs.getInt(1);
+        return rs.getInt(1);
 
-        } catch (SQLException e) {
-            e.printStackTrace();
-            System.out.println("here4");
-            return -1;
-        }  
+        
     }
 
     private int getTopicPostCount(long topicId) throws Exception{
         if (validateTopicId(topicId) == null) throw new Exception("TopicId did not exist.");
-        final String STMT = "SELECT COUNT(*) FROM Topic JOIN Post ON TopicId = Topic.id WHERE Topic.id = 1;";
-        try (PreparedStatement p = c.prepareStatement(STMT)) {
+        final String STMT = "SELECT COUNT(*) FROM Topic JOIN Post ON TopicId = Topic.id WHERE Topic.id = ?;";
+        PreparedStatement p = c.prepareStatement(STMT);
 
-            p.setLong(1, topicId);
+        p.setLong(1, topicId);
 
-            ResultSet rs = p.executeQuery();
+        ResultSet rs = p.executeQuery();
 
-            return rs.getInt(1);
+        return rs.getInt(1);
 
-        } catch (SQLException e) {
-            e.printStackTrace();
-            System.out.println("here5");
-            return -1;
-        }  
+        
     }
 
     //expects prior validation of username :)
@@ -956,7 +945,6 @@ public class API implements APIProvider {
             return rs.getInt(1);
 
         } catch (SQLException e) {
-            System.out.println("here6");
             e.printStackTrace();
             return -1;
         }       
@@ -974,7 +962,6 @@ public class API implements APIProvider {
             return rs.getInt(1);
 
         } catch (SQLException e) {
-            System.out.println("here7");
             e.printStackTrace();
             return -1;
         }       

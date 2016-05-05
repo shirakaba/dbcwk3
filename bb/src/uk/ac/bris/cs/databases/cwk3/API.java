@@ -576,6 +576,24 @@ public class API implements APIProvider {
         }
     }
 
+    private boolean favouriteNeedsChanging(long TopicId, long PersonId, boolean intendToFavourite) throws SQLException {
+        boolean alreadyFavouritedTopic = false;
+        final String STMT = "SELECT TopicId, PersonId FROM FavouriteTopic WHERE TopicId = ? AND PersonId = ?;";
+
+        try (PreparedStatement p = c.prepareStatement(STMT)) {
+            p.setLong(1, TopicId);
+            p.setLong(2, PersonId);
+
+            ResultSet rs = p.executeQuery();
+            if (rs.next()) alreadyFavouritedTopic = true;
+
+            if (intendToFavourite) if (alreadyFavouritedTopic) return false;
+            else if (!alreadyFavouritedTopic) return false;
+
+            return true;
+        }
+    }
+
     // TO ALEX - DONE
     @Override
     public Result likeTopic(String username, long topicId, boolean like) {
@@ -617,8 +635,33 @@ public class API implements APIProvider {
      */
     // TO PHAN
     @Override
-    public Result favouriteTopic(String username, long topicId, boolean fav) {
-        throw new UnsupportedOperationException("Not supported yet.");
+    public Result favouriteTopic(String username, long topicId, boolean favourite) {
+       final String STMT;
+        if (favourite) STMT = "INSERT INTO FavouriteTopic (FavouriteId, PersonId) VALUES (?, ?);";
+        else STMT = "DELETE FROM FavouriteTopic WHERE FavouriteId = ? AND PersonId = ?;";
+
+        try (PreparedStatement p1 = c.prepareStatement(STMT)) {
+            Long personId = validateUsername(username);
+            if (personId == null) return Result.failure("username did not exist.");
+            if (validateTopicId(topicId) == null) return Result.failure("topicId did not exist.");
+            if (!favouriteNeedsChanging(topicId, personId, favourite)) return Result.success();
+
+            p1.setLong(1, topicId);
+            p1.setLong(2, personId);
+            System.out.println(p1);
+            p1.execute();
+            c.commit();
+        } catch (SQLException e) {
+            try {
+                c.rollback();
+            } catch (SQLException f) {
+                return Result.fatal(f.getMessage());
+            }
+//            e.printStackTrace();
+            return Result.fatal(e.getMessage());
+        }
+        return Result.success();
+
     }
 
 

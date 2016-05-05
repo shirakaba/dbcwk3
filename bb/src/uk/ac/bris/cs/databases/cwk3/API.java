@@ -116,7 +116,7 @@ public class API implements APIProvider {
 
         try {
             if(validateTopicId(topicId) == null) return Result.failure("topic didn't exist.");
-            posts = countRowsOfTopicTable(topicId, CountRowsOfTableMode.POSTS);
+            posts = countRowsOfTable(topicId, CountRowsOfTopicMode.TOPIC_POSTS);
         } catch (SQLException e) {
 //            return Result.failure(e.getMessage()); // TODO: need any exception handling here?
         }
@@ -214,34 +214,6 @@ public class API implements APIProvider {
         }
     }
 
-    /**
-     * Switches the mode of countRowsOfTopicTable() to counting Likes (LIKES) or Posts (POSTS).
-     */
-    private enum CountRowsOfTableMode {
-        LIKES,
-        POSTS
-    }
-
-    /**
-     * Counts the number of entries (rows) in a table detailing the Posts Or Likes for a  given Topic.
-     *
-     * @param topicId - the id to count Posts/Likes for.
-     * @param mode - counts Posts if CountRowsOfTableMode.POSTS; otherwise, counts LIKES.
-     * @return the counted number of Posts/Likes.. Otherwise, null.
-     */
-    private int countRowsOfTopicTable(long topicId, CountRowsOfTableMode mode) throws SQLException {
-        final String whichTable = mode.equals(CountRowsOfTableMode.POSTS) ? "Post" : "LikedTopic";
-
-        final String getTopicId = String.format("SELECT count(*) AS count FROM %s WHERE TopicId = ?;", whichTable);
-
-        try (PreparedStatement p = c.prepareStatement(getTopicId)) {
-            p.setLong(1, topicId);
-
-            ResultSet rs = p.executeQuery();
-            return rs.getInt("count");
-        }
-    }
-
     /* 
      * Level 2 - standard difficulty. Most groups should get all of these.
      * They require a little bit more thought than the level 1 API though.
@@ -259,22 +231,17 @@ public class API implements APIProvider {
                 "ORDER BY `date` DESC, Post.id DESC " + // orders first by date, then by size (newness) of id in case of same-day post
                 "LIMIT 1;";
 
-        // TODO: generalise this count statement for re-use in countPostsInTopic().
-        final String likesSTMT = "SELECT count(*) AS likes FROM LikedTopic WHERE TopicId = ?;";
-
-        try (PreparedStatement latestPostP = c.prepareStatement(latestPostSTMT);
-             PreparedStatement likesP = c.prepareStatement(likesSTMT)) {
+        try (PreparedStatement latestPostP = c.prepareStatement(latestPostSTMT)) {
             if (validateTopicId(topicId) == null) return Result.failure("topicId did not exist.");
 
             latestPostP.setLong(1, topicId);
-            likesP.setLong(1, topicId);
 
-            ResultSet latestPostRS = latestPostP.executeQuery(), likesRS = likesP.executeQuery();
+            ResultSet latestPostRS = latestPostP.executeQuery();
 
             return Result.success(new PostView(
                     latestPostRS.getInt("forumId"), topicId, latestPostRS.getInt("postNumber"),
                     latestPostRS.getString("name"), latestPostRS.getString("username"),
-                    latestPostRS.getString("text"), latestPostRS.getInt("date"), likesRS.getInt("likes")));
+                    latestPostRS.getString("text"), latestPostRS.getInt("date"), countRowsOfTable(topicId, CountRowsOfTopicMode.TOPIC_LIKES)));
         } catch (SQLException e) {
             return Result.fatal(e.getMessage());
         }
@@ -456,13 +423,13 @@ public class API implements APIProvider {
     public Result<ForumView> getForum(long id) {
         final String STMT = "SELECT Topic.id AS topicId, Topic.title AS topicTitle "
                 + "FROM Forum INNER JOIN Topic ON Forum.id = Topic.ForumId "
-                + "WHERE forumId = ?;";
+                + "WHERE ForumId = ?;";
         List<SimpleTopicSummaryView> topics = new ArrayList<>();
         try (PreparedStatement p = c.prepareStatement(STMT)) {
             String forumTitle = validateForumId(id);
             if (forumTitle == null) return Result.failure("Forum id did not exist, or forum has no topics under it (illegal).");
 
-            p.setLong(1, (int) id);
+            p.setLong(1, id);
             ResultSet rs = p.executeQuery();
 
             while (rs.next()) topics.add(new SimpleTopicSummaryView(rs.getLong("topicId"), id, rs.getString("topicTitle")));
@@ -517,11 +484,11 @@ public class API implements APIProvider {
 
         final String ascendingPostsOfTopicSTMT = String.format(
                 "SELECT DISTINCT Post.id AS pId, Topic.Id AS tId, Forum.id AS fId, Forum.title AS forumName, " +
-                        "Topic.title AS tTitle, name, username, `text`, `date`, count(Post.id) AS likes FROM Post " +
-                        "JOIN Topic ON Post.TopicId = Topic.id JOIN Person ON Post.PersonId = Person.id JOIN Forum ON Topic.ForumId = Forum.id " +
-                        "LEFT JOIN LikedPost ON LikedPost.PostId = Post.id " +
-                        "WHERE TopicId = ? GROUP BY Post.id " +
-                        "ORDER BY `date` ASC, Post.id ASC %s;", limiter);
+                "Topic.title AS tTitle, name, username, `text`, `date`, count(Post.id) AS likes FROM Post " +
+                "JOIN Topic ON Post.TopicId = Topic.id JOIN Person ON Post.PersonId = Person.id JOIN Forum ON Topic.ForumId = Forum.id " +
+                "LEFT JOIN LikedPost ON LikedPost.PostId = Post.id " +
+                "WHERE TopicId = ? GROUP BY Post.id " +
+                "ORDER BY `date` ASC, Post.id ASC %s;", limiter);
 
         try (PreparedStatement p = c.prepareStatement(ascendingPostsOfTopicSTMT)) {
             if (validateTopicId(topicId) == null) return Result.failure("Topic id did not exist.");
@@ -781,58 +748,104 @@ public class API implements APIProvider {
         }
     }
 
-    //expects prior validation of username :)
-    private int getPersonalLikedPostCount(String username){
-        final String STMT = "SELECT COUNT(*) FROM Person JOIN LikedPost ON id = PersonId WHERE username = ?;";
-        try (PreparedStatement p = c.prepareStatement(STMT)) {
-
-            p.setString(1, username);
-
-            ResultSet rs = p.executeQuery();
-
-            return rs.getInt(1);
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return -1;
-        }       
+    /**
+     * Switches the mode of countRowsOfTable() to counting Likes (PERSON_LIKES) or Favourites (PERSON_FAVOURITES).
+     */
+    private enum CountRowsOfPersonMode {
+        PERSON_LIKES,
+        PERSON_FAVOURITES
     }
 
-    //expects prior validation of username :)
-    private int getPersonalFavouritedTopicCount(String username){
-        final String STMT = "SELECT COUNT(*) FROM Person JOIN FavouritedTopic ON id = PersonId WHERE username = ?;";
-        try (PreparedStatement p = c.prepareStatement(STMT)) {
+    /**
+     * Counts the number of entries (rows) in a table detailing the Posts Or Likes for a  given Topic.
+     * Expects prior validation of username.
+     *
+     * @param username - the username to count Favourites/Likes for.
+     * @param mode - counts Posts if CountRowsOfPersonMode.TOPIC_POSTS; otherwise, counts TOPIC_LIKES.
+     * @return the counted number of Posts/Likes.. Otherwise, null.
+     */
+    private int countRowsOfTable(String username, CountRowsOfPersonMode mode) throws SQLException {
+        final String getTopicId;
 
+        switch(mode){
+            case PERSON_LIKES:
+                getTopicId = "SELECT count(*) AS count FROM Person JOIN LikedPost ON id = PersonId WHERE username = ?;";
+                break;
+            case PERSON_FAVOURITES:
+                getTopicId = "SELECT count(*) AS count FROM Person JOIN FavouritedTopic ON id = PersonId WHERE username = ?;";
+                break;
+            default:
+                throw new UnsupportedOperationException("An unimplemented branch of the countRowsOfTable method was used.");
+        }
+
+        try (PreparedStatement p = c.prepareStatement(getTopicId)) {
             p.setString(1, username);
 
             ResultSet rs = p.executeQuery();
+            return rs.getInt("count");
+        }
+    }
 
-            return rs.getInt(1);
+    /**
+     * Switches the mode of countRowsOfTable() to counting Likes (TOPIC_LIKES) or Posts (TOPIC_POSTS).
+     */
+    private enum CountRowsOfTopicMode {
+        TOPIC_LIKES,
+        TOPIC_POSTS
+    }
 
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return -1;
-        }       
+    /**
+     * Counts the number of entries (rows) in a table detailing the Posts Or Likes for a  given Topic.
+     *
+     * @param topicId - the id to count Posts/Likes for.
+     * @param mode - counts Posts if CountRowsOfTableMode.TOPIC_POSTS; otherwise, counts TOPIC_LIKES.
+     * @return the counted number of Posts/Likes.. Otherwise, null.
+     */
+    private int countRowsOfTable(long topicId, CountRowsOfTopicMode mode) throws SQLException {
+        final String getTopicId;
+
+        switch(mode){
+            case TOPIC_LIKES:
+                getTopicId = "SELECT count(*) AS count FROM LikedTopic WHERE TopicId = ?;";
+                break;
+            case TOPIC_POSTS:
+                getTopicId = "SELECT count(*) AS count FROM Post WHERE TopicId = ?;";
+                break;
+            default:
+                throw new UnsupportedOperationException("An unimplemented branch of the countRowsOfTable method was used.");
+        }
+
+        try (PreparedStatement p = c.prepareStatement(getTopicId)) {
+            p.setLong(1, topicId);
+
+            ResultSet rs = p.executeQuery();
+            return rs.getInt("count");
+        }
     }
 
     // TODO: under construction.
     @Override
     public Result<AdvancedForumView> getAdvancedForum(long id) {
         throw new UnsupportedOperationException("Not supported yet.");
-//        final String STMT = "SELECT Topic.id AS topicId, Topic.title AS topicTitle "
-//                + "FROM Forum INNER JOIN Topic ON Forum.id = Topic.ForumId "
-//                + "WHERE forumId = ? ORDER BY Topic.title ASC;";
+//        final String STMT =
+//                "SELECT Post.id AS pId, Post.date, Topic.id AS tId, Topic.title, " +
+//                        "count(LikedTopic.TopicId) AS topicLikes, count(Post.TopicId) AS postCnt FROM Forum " +
+//                "JOIN Topic ON Forum.id = Topic.ForumId " +
+//                "LEFT JOIN Post ON Post.TopicId = Topic.id " +
+//                "LEFT JOIN LikedTopic ON LikedTopic.TopicId = Topic.id " +
+//                "WHERE Topic.ForumId = ? GROUP BY Topic.id, Post.id " +
+//                "ORDER BY Post.date DESC, Post.id DESC;";
 //        List<TopicSummaryView> topics = new ArrayList<>();
 //        try (PreparedStatement p = c.prepareStatement(STMT)) {
 //            String forumTitle = validateForumId(id);
 //            if (forumTitle == null) return Result.failure("Forum id did not exist, or forum has no topics under it (illegal).");
 //
-//            p.setLong(1, (int) id);
+//            p.setLong(1, id);
 //            ResultSet rs = p.executeQuery();
 //
 //            while (rs.next()) topics.add(new TopicSummaryView(
-//                    rs.getLong("topicId"), id, rs.getString("topicTitle"),
-//                    // int postCount, int created, int lastPostTime, String lastPostName, int likes, String creatorName, String creatorUserName
+//                    rs.getLong("Topic.id"), id, rs.getString("Topic.title"),
+//                    // int postCount, int created, rs.getInt("Post.date"), String lastPostName, rs.getInt("topicLikes"), String creatorName, String creatorUserName
 //                    )
 //            );
 //

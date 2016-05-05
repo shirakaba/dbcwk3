@@ -88,7 +88,8 @@ public interface APIProvider {
      * @return the list of all forums, empty list if there are none.
      */
     public Result<List<ForumSummaryView>> getForums();
-    
+
+    // TO Phan [not started]
     /**
      * Create a new forum.
      * @param title - the title of the forum. Must not be null or empty and
@@ -110,7 +111,7 @@ public interface APIProvider {
      */
     public Result createPost(long topicId, String username, String text);
     
- // Provisionally done by Jamie
+     // To Jamie - DONE
     /**
      * Create a new person.
      * @param name - the person's name, cannot be empty.
@@ -123,14 +124,16 @@ public interface APIProvider {
      * fatal if something else went wrong.
      */
     public Result addNewPerson(String name, String username, String studentId);
-    
+
+    // TO Phan [not started]
     /**
      * Get the detailed view of a single forum.
      * @param id - the id of the forum to get.
      * @return A view of this forum if it exists, otherwise failure.
      */
     public Result<ForumView> getForum(long id);
-    
+
+    // TO Jamie - DONE
     /**
      * Get the detailed view of a topic.
      * @param topicId - the topic to get.
@@ -142,7 +145,7 @@ public interface APIProvider {
      */
     public Result<TopicView> getTopic(long topicId, int page);
     
-	//TO ALEX - DONE
+	// TO ALEX - DONE
     /**
      * Like or unlike a topic. A topic is either liked or not, when calling this
      * twice in a row with the same parameters, the second call is a no-op (this
@@ -155,7 +158,8 @@ public interface APIProvider {
      */
     public Result likeTopic(String username, long topicId,
                             boolean like);
-    
+
+    // TO PHAN [not started]
     /**
      * Set or unset a topic as favourite. Same semantics as likeTopic.
      * @param username - the person setting the favourite topic (must exist).

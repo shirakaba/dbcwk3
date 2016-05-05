@@ -10,21 +10,7 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.Date;
 
-import uk.ac.bris.cs.databases.api.APIProvider;
-import uk.ac.bris.cs.databases.api.AdvancedForumSummaryView;
-import uk.ac.bris.cs.databases.api.AdvancedForumView;
-import uk.ac.bris.cs.databases.api.ForumSummaryView;
-import uk.ac.bris.cs.databases.api.ForumView;
-import uk.ac.bris.cs.databases.api.AdvancedPersonView;
-import uk.ac.bris.cs.databases.api.PostView;
-import uk.ac.bris.cs.databases.api.Result;
-import uk.ac.bris.cs.databases.api.PersonView;
-import uk.ac.bris.cs.databases.api.SimpleForumSummaryView;
-import uk.ac.bris.cs.databases.api.SimplePostView;
-import uk.ac.bris.cs.databases.api.SimpleTopicView;
-import uk.ac.bris.cs.databases.api.SimpleTopicSummaryView;
-import uk.ac.bris.cs.databases.api.TopicView;
-import uk.ac.bris.cs.databases.api.TopicSummaryView;
+import uk.ac.bris.cs.databases.api.*;
 /**
  *
  * @author csxdb
@@ -116,9 +102,8 @@ public class API implements APIProvider {
                 list.add(new SimpleForumSummaryView(rs.getLong("id"), rs.getString("title")));
             }
 
-//            return Result.success(list);
         } catch (SQLException e) {
-//            return Result.fatal(e.getMessage()); // TODO: need any exception handling here?
+            return Result.fatal(e.getMessage());
         }
         return Result.success(list); // like getLikers, we return successful even if the list is empty.
     }
@@ -126,16 +111,15 @@ public class API implements APIProvider {
     // implemented by Phan [seems to be working in SQLite]
     @Override
     public Result<Integer> countPostsInTopic(long topicId) {
-        final String STMT = "SELECT count(*) FROM Post WHERE TopicId = ?;"; // TODO: ask if count(*) is faster/slower than count(column)
+        int posts = 0;
 
-        try (PreparedStatement p = c.prepareStatement(STMT)) {
-            p.setLong(1, topicId);
-            ResultSet rs = p.executeQuery();
-
-            return Result.success(rs.getInt("count"));
+        try {
+            if(validateTopicId(topicId) == null) return Result.failure("topic didn't exist.");
+            posts = countRowsOfTopicTable(topicId, CountRowsOfTableMode.POSTS);
         } catch (SQLException e) {
-            return Result.failure(e.getMessage());
+//            return Result.failure(e.getMessage()); // TODO: need any exception handling here?
         }
+        return Result.success(posts);
     }
 
 
@@ -229,6 +213,34 @@ public class API implements APIProvider {
         }
     }
 
+    /**
+     * Switches the mode of countRowsOfTopicTable() to counting Likes (LIKES) or Posts (POSTS).
+     */
+    private enum CountRowsOfTableMode {
+        LIKES,
+        POSTS
+    }
+
+    /**
+     * Counts the number of entries (rows) in a table detailing the Posts Or Likes for a  given Topic.
+     *
+     * @param topicId - the id to count Posts/Likes for.
+     * @param mode - counts Posts if CountRowsOfTableMode.POSTS; otherwise, counts LIKES.
+     * @return the counted number of Posts/Likes.. Otherwise, null.
+     */
+    private int countRowsOfTopicTable(long topicId, CountRowsOfTableMode mode) throws SQLException {
+        final String whichTable = mode.equals(CountRowsOfTableMode.POSTS) ? "Post" : "LikedTopic";
+
+        final String getTopicId = String.format("SELECT count(*) AS count FROM %s WHERE TopicId = ?;", whichTable);
+
+        try (PreparedStatement p = c.prepareStatement(getTopicId)) {
+            p.setLong(1, topicId);
+
+            ResultSet rs = p.executeQuery();
+            return rs.getInt("count");
+        }
+    }
+
     /* 
      * Level 2 - standard difficulty. Most groups should get all of these.
      * They require a little bit more thought than the level 1 API though.
@@ -239,12 +251,12 @@ public class API implements APIProvider {
     public Result<PostView> getLatestPost(long topicId) {
         final String latestPostSTMT =
                 "SELECT `date`, `name`, username, text, Forum.id AS forumId, count(*) AS postNumber FROM Topic " +
-                        "INNER JOIN Post ON Topic.id = Post.TopicId " +
-                        "INNER JOIN Person ON Person.id = Post.PersonId " +
-                        "INNER JOIN Forum ON Forum.id = Topic.ForumId " +
-                        "WHERE Post.TopicId = ? " +
-                        "ORDER BY `date` DESC, Post.id DESC " + // orders first by date, then by size (newness) of id in case of same-day post
-                        "LIMIT 1;";
+                "INNER JOIN Post ON Topic.id = Post.TopicId " +
+                "INNER JOIN Person ON Person.id = Post.PersonId " +
+                "INNER JOIN Forum ON Forum.id = Topic.ForumId " +
+                "WHERE Post.TopicId = ? " +
+                "ORDER BY `date` DESC, Post.id DESC " + // orders first by date, then by size (newness) of id in case of same-day post
+                "LIMIT 1;";
 
         // TODO: generalise this count statement for re-use in countPostsInTopic().
         final String likesSTMT = "SELECT count(*) AS likes FROM LikedTopic WHERE TopicId = ?;";
@@ -338,8 +350,33 @@ public class API implements APIProvider {
     // TO Phan
     @Override
     public Result createForum(String title) {
-        final String STMT = "SELECT title FROM Forum WHERE title = ?;";
-        return Result.failure("not done");
+        final String selectSTMT = "SELECT title FROM Forum WHERE title = ?;";
+        try (PreparedStatement p = c.prepareStatement(selectSTMT)) {
+            p.setString(1, title);
+            ResultSet rs = p.executeQuery();
+            if (rs.next()) {
+                return Result.failure ("Title already existed");
+            }
+            else {
+                final String insertSTMT = "INSERT INTO Forum (title) VALUES (?);";
+                if  (title== null || title.isEmpty()) {
+                    return Result.failure ("Null");
+                }
+                try (PreparedStatement p1 = c.prepareStatement(insertSTMT)) {
+                    p1.setString(1, title);
+                    p1.execute();
+                    c.commit();
+                    return Result.success();
+                }
+            }
+        } catch (SQLException e) {
+            try {
+                c.rollback();
+            } catch (SQLException f) {
+                return Result.fatal(f.getMessage());
+            }
+            return Result.fatal(e.getMessage());
+        }
     }
 
 //
@@ -443,7 +480,7 @@ public class API implements APIProvider {
     public Result<ForumView> getForum(long id) {
         final String STMT = "SELECT Topic.id AS topicId, Topic.title AS topicTitle "
                 + "FROM Forum INNER JOIN Topic ON Forum.id = Topic.ForumId "
-                + "WHERE forumId = ? ORDER BY Topic.title ASC;"; // TODO: ask if we should order by title, or anything else.
+                + "WHERE forumId = ?;";
         List<SimpleTopicSummaryView> topics = new ArrayList<>();
         try (PreparedStatement p = c.prepareStatement(STMT)) {
             String forumTitle = validateForumId(id);
@@ -550,9 +587,13 @@ public class API implements APIProvider {
 
     }
 
+    /**
+     * Used to switch the mode of the likeOrFavouriteNeedsChanging() method.
+     *
+     * */
     private enum LikeOrFavourite {
         LIKE,
-        FAVOURITE;
+        FAVOURITE
     }
 
     /**
@@ -627,7 +668,7 @@ public class API implements APIProvider {
      * @return success (even if it was a no-op), failure if the person or topic
      * does not exist and fatal in case of db errors.
      */
-    // TO PHAN
+    // Alex
     @Override
     public Result favouriteTopic(String username, long topicId, boolean favourite) {
        final String STMT;
@@ -883,7 +924,7 @@ public class API implements APIProvider {
 
     //expects prior validation of username :)
     private int getPersonalLikedPostCount(String username){
-        final String STMT = "SELECT COUNT(*) FROM Person JOIN LikedPost ON id = PersonId WHERE username = '?';";
+        final String STMT = "SELECT COUNT(*) FROM Person JOIN LikedPost ON id = PersonId WHERE username = ?;";
         try (PreparedStatement p = c.prepareStatement(STMT)) {
 
             p.setString(1, username);
@@ -900,7 +941,7 @@ public class API implements APIProvider {
 
     //expects prior validation of username :)
     private int getPersonalFavouritedTopicCount(String username){
-        final String STMT = "SELECT COUNT(*) FROM Person JOIN FavouritedTopic ON id = PersonId WHERE username = '?';";
+        final String STMT = "SELECT COUNT(*) FROM Person JOIN FavouritedTopic ON id = PersonId WHERE username = ?;";
         try (PreparedStatement p = c.prepareStatement(STMT)) {
 
             p.setString(1, username);
@@ -915,9 +956,31 @@ public class API implements APIProvider {
         }       
     }
 
+    // TODO: under construction.
     @Override
     public Result<AdvancedForumView> getAdvancedForum(long id) {
         throw new UnsupportedOperationException("Not supported yet.");
+//        final String STMT = "SELECT Topic.id AS topicId, Topic.title AS topicTitle "
+//                + "FROM Forum INNER JOIN Topic ON Forum.id = Topic.ForumId "
+//                + "WHERE forumId = ? ORDER BY Topic.title ASC;";
+//        List<TopicSummaryView> topics = new ArrayList<>();
+//        try (PreparedStatement p = c.prepareStatement(STMT)) {
+//            String forumTitle = validateForumId(id);
+//            if (forumTitle == null) return Result.failure("Forum id did not exist, or forum has no topics under it (illegal).");
+//
+//            p.setLong(1, (int) id);
+//            ResultSet rs = p.executeQuery();
+//
+//            while (rs.next()) topics.add(new TopicSummaryView(
+//                    rs.getLong("topicId"), id, rs.getString("topicTitle"),
+//                    // int postCount, int created, int lastPostTime, String lastPostName, int likes, String creatorName, String creatorUserName
+//                    )
+//            );
+//
+//            return Result.success(new AdvancedForumView(id, forumTitle, topics));
+//        } catch (SQLException e) {
+//            return Result.fatal(e.getMessage());
+//        }
     }
 
     // TODO: this shouldn't be at all hard - just reference likeTopic() and generalise the likeOrFavouriteNeedsChanging() private method.

@@ -441,19 +441,20 @@ public class API implements APIProvider {
     // TO Phan
     @Override
     public Result<ForumView> getForum(long id) {
-        final String STMT = "SELECT Forum.id AS id, Forum.title AS title, Topic.id AS topicId, Topic.title AS topicTitle "
+        final String STMT = "SELECT Topic.id AS topicId, Topic.title AS topicTitle "
                 + "FROM Forum INNER JOIN Topic ON Forum.id = Topic.ForumId "
-                + "WHERE forumId = ? ORDER BY Topic.title ASC;";
+                + "WHERE forumId = ? ORDER BY Topic.title ASC;"; // TODO: ask if we should order by title, or anything else.
         List<SimpleTopicSummaryView> topics = new ArrayList<>();
         try (PreparedStatement p = c.prepareStatement(STMT)) {
-            p.setInt(1, (int) id);
+            String forumTitle = validateForumId(id);
+            if (forumTitle == null) return Result.failure("Forum id did not exist, or forum has no topics under it (illegal).");
+
+            p.setLong(1, (int) id);
             ResultSet rs = p.executeQuery();
-            if (rs.next()) {
-                topics.add(new SimpleTopicSummaryView(rs.getLong("topicId"), rs.getLong("id"), rs.getString("topicTitle")));
-            } else {
-                return Result.failure("Not found");
-            }
-            return Result.success(new ForumView(id, rs.getString("title"), topics));
+
+            while (rs.next()) topics.add(new SimpleTopicSummaryView(rs.getLong("topicId"), id, rs.getString("topicTitle")));
+
+            return Result.success(new ForumView(id, forumTitle, topics));
         } catch (SQLException e) {
             return Result.fatal(e.getMessage());
         }
@@ -666,19 +667,20 @@ public class API implements APIProvider {
 
 
     /**
-     * Checks whether forumId has been registered in the Forum table.
+     * Checks whether forumId has been registered in the Forum table, and has at least one Topic associated with it.
      *
      * @param forumId - forumId to check for the existence of in table.
      * @return Returns corresponding title of forumId. Otherwise, returns null.
      */
     private String validateForumId(long forumId) throws SQLException {
-        final String checkForumId = "SELECT id, title FROM Forum WHERE id = ?;";
+        final String checkForumId = "SELECT Forum.id, Forum.title FROM " +
+                "Forum JOIN Topic ON Forum.id = Topic.ForumId WHERE Forum.id = ? LIMIT 1;";
 
         try (PreparedStatement p = c.prepareStatement(checkForumId)) {
             p.setLong(1, forumId);
 
             ResultSet rs = p.executeQuery();
-            if (!rs.next()) return null; // forum id doesn't exist
+            if (!rs.next()) return null; // forum id doesn't exist, or forum has no topic under it.
 
             return rs.getString("title");
         }
@@ -704,7 +706,7 @@ public class API implements APIProvider {
             Long personId = validateUsername(username);
             if (personId == null) return Result.failure("username did not exist.");
             if (validateForumId(forumId) == null)
-                return Result.failure("Forum id did not exist."); // TODO: ask about failure messages not printing.
+                return Result.failure("Forum id did not exist, or forum has no topics under it (illegal)."); // TODO: ask about failure messages not printing.
 
             p2.setString(1, title);
             p2.setLong(2, forumId);

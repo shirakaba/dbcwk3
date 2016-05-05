@@ -104,10 +104,16 @@ public class API implements APIProvider {
     // implemented by Phan [tested]
     @Override
     public Result<List<SimpleForumSummaryView>> getSimpleForums() {
+<<<<<<< Updated upstream
         final String STMT = "SELECT id, title FROM Forum ORDER BY title DESC;";
         List<SimpleForumSummaryView> list = new ArrayList<>();
 
         try (PreparedStatement p = c.prepareStatement(STMT)) {
+=======
+        final String STMT = "SELECT id FROM Forum ORDER BY title ASC";
+        List <SimpleForumSummaryView> list = new ArrayList <>();
+        try(PreparedStatement p = c.prepareStatement(STMT)){
+>>>>>>> Stashed changes
             ResultSet rs = p.executeQuery();
 
             while (rs.next()) {
@@ -335,7 +341,8 @@ public class API implements APIProvider {
     // TO Phan
     @Override
     public Result createForum(String title) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        final String STMT = "SELECT title FROM Forum WHERE title = ?;";
+        return Result.failure("not done");
     }
 
 //
@@ -427,6 +434,7 @@ public class API implements APIProvider {
 
         return Result.success();
     }
+<<<<<<< Updated upstream
 
     /*
      * Corner case: needs to 'meet the specification' if one uses getForum on a forum that has no topics.
@@ -435,9 +443,28 @@ public class API implements APIProvider {
      * @return A view of this forum if it exists, otherwise failure.
      */
     // TO Phan
+=======
+    
+    // Phan
+>>>>>>> Stashed changes
     @Override
     public Result<ForumView> getForum(long id) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        final String STMT = "SELECT Forum.id AS id, Forum.title AS title, Topic.id as topicId, Topic.title as topicTitle"
+                            + "FROM Forum INNER JOIN Topic ON Forum.id = Topic.ForumId"
+                            + "WHERE forumId = ? ORDER BY Topic ASC;";
+        List <SimpleTopicSummaryView> topics = new ArrayList <>();
+        try(PreparedStatement p = c.prepareStatement(STMT)){
+            p.setInt(1, (int)id);
+            ResultSet rs = p.executeQuery();
+            if (rs.next()) {
+                topics.add(new SimpleTopicSummaryView(rs.getLong("topicId"), rs.getLong ("id"), rs.getString("topicTitle")));
+            } else {
+                return Result.failure("Not found");
+            }
+            return Result.success(new ForumView (id, rs.getString("title"), topics));
+        }catch(SQLException e){
+            return Result.fatal(e.getMessage());
+        }
     }
 
 
@@ -624,6 +651,7 @@ public class API implements APIProvider {
     // TO ALEX - "I'll give it a go" [Jamie - added validation, rollback, and closed preparedStatements. Untested.]
     @Override
     public Result createTopic(long forumId, String username, String title, String text) {
+<<<<<<< Updated upstream
         final String createTopicSTMT = "INSERT INTO Topic (title, ForumId) VALUES(?, ?);";
         final String getTopicIdSTMT = "SELECT id FROM Topic WHERE title = ?;";
         final String STMT = "INSERT INTO Post (`date`, `text`, PersonId, TopicId) VALUES (?, ?, ?, ?);";
@@ -665,6 +693,9 @@ public class API implements APIProvider {
             }
             return Result.fatal(e.getMessage());
         }
+=======
+        throw new UnsupportedOperationException("Not supported yet.");
+>>>>>>> Stashed changes
     }
 
     @Override
@@ -687,5 +718,9 @@ public class API implements APIProvider {
     public Result likePost(String username, long topicId, int post, boolean like) {
         throw new UnsupportedOperationException("Not supported yet.");  
    }
+<<<<<<< Updated upstream
 
 }
+=======
+}
+>>>>>>> Stashed changes

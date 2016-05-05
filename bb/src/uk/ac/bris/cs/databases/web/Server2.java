@@ -115,7 +115,8 @@ public class Server2 extends RouterNanoHTTPD {
 //        }
 //		rs = api.createPost(6, "username2", "Gladiators is quite possibly... the greatest film every.");
 //      rs = api.getSimpleForums();
-        rs = api.countPostsInTopic(1);
+//        rs = api.countPostsInTopic(1);
+        rs = api.getForum(1);
 
 //		rs.close();
 		conn.close();

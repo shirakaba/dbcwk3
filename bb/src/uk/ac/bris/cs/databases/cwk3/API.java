@@ -612,20 +612,13 @@ public class API implements APIProvider {
 
     }
 
-    /*
-     * Set or unset a topic as favourite. Same semantics as likeTopic.
-     * @param username - the person setting the favourite topic (must exist).
-     * @param topicId - the topic to set as favourite (must exist).
-     * @param fav - true to set, false to unset as favourite.
-     * @return success (even if it was a no-op), failure if the person or topic
-     * does not exist and fatal in case of db errors.
-     */
+
     // Alex
     @Override
     public Result favouriteTopic(String username, long topicId, boolean favourite) {
        final String STMT;
-        if (favourite) STMT = "INSERT INTO FavouriteTopic (FavouriteId, PersonId) VALUES (?, ?);";
-        else STMT = "DELETE FROM FavouriteTopic WHERE FavouriteId = ? AND PersonId = ?;";
+        if (favourite) STMT = "INSERT INTO FavouritedTopic (TopicId, PersonId) VALUES (?, ?);";
+        else STMT = "DELETE FROM FavouritedTopic WHERE TopicId = ? AND PersonId = ?;";
 
         try (PreparedStatement p1 = c.prepareStatement(STMT)) {
             Long personId = validateUsername(username);
@@ -854,13 +847,14 @@ public class API implements APIProvider {
                             "JOIN Person ON PersonId = Person.id " +
                             "WHERE Topic.id = ? " +
                             "ORDER BY `date` ASC LIMIT 1;";
-        PreparedStatement p = c.prepareStatement(STMT);
 
-        p.setLong(1, topicId);
+        try(PreparedStatement p = c.prepareStatement(STMT)){
+            p.setLong(1, topicId);
 
-        ResultSet rs = p.executeQuery();
+            ResultSet rs = p.executeQuery();
 
-        return new String[]{String.valueOf(rs.getInt(1)), rs.getString("name"), rs.getString("username")};
+            return new String[]{String.valueOf(rs.getInt(1)), rs.getString("name"), rs.getString("username")};
+        }
     }
 
     // requires topic to be validated beforehand
@@ -873,14 +867,14 @@ public class API implements APIProvider {
                             "JOIN Person ON PersonId = Person.id " +
                             "WHERE Topic.id = ?" +
                             "ORDER BY `date` DESC LIMIT 1;";
-        PreparedStatement p = c.prepareStatement(STMT);
 
-        p.setLong(1, topicId);
+        try(PreparedStatement p = c.prepareStatement(STMT)) {
+            p.setLong(1, topicId);
 
-        ResultSet rs = p.executeQuery();
+            ResultSet rs = p.executeQuery();
 
-        return new String[]{String.valueOf(rs.getInt(1)), rs.getString("name")};
-   
+            return new String[]{String.valueOf(rs.getInt(1)), rs.getString("name")};
+        }
     }
 
 

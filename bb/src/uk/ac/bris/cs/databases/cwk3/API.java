@@ -810,8 +810,12 @@ public class API implements APIProvider {
 
     //expects prior validation of username :)
     private ArrayList<TopicSummaryView> getTopicSummaryView(String username) throws Exception{
-        final String STMT = "SELECT topicId, forumId, title, name, username FROM Person " +
-                            "JOIN FavouritedTopic ON id = PersonId WHERE username = '?';";
+        final String STMT = "SELECT Topic.Id, Forum.Id, Topic.title, Person.name, Person.username FROM Person " +
+                            "JOIN FavouritedTopic ON Person.id = FavouritedTopic.PersonId " +
+                            "JOIN Post ON Post.PersonId = Person.id " +
+                            "JOIN Topic ON Topic.id = Post.TopicId " +
+                            "JOIN Forum ON Forum.id = ForumId " +
+                            "WHERE username = '?';";
 
         try (PreparedStatement p = c.prepareStatement(STMT)) {
 
@@ -828,7 +832,7 @@ public class API implements APIProvider {
 
             while (rs.next()) {
                 list.add(new TopicSummaryView(rs.getLong("topicId"),
-                                              Long.parseLong(rs.getString("forumId")),
+                                              rs.getLong("forumId"),
                                               rs.getString("title"),
                                               topicPostCount,
                                               Integer.parseInt(topicCreatedDatePerson[0]),
@@ -842,6 +846,7 @@ public class API implements APIProvider {
             return list;
 
         } catch (SQLException e) {
+            System.out.println("here1");
             throw e;
         }           
     }
@@ -863,6 +868,7 @@ public class API implements APIProvider {
             return new String[]{String.valueOf(rs.getInt(1)), rs.getString("name"), rs.getString("username")};
 
         } catch (SQLException e) {
+            System.out.println("here2");
             throw e;
         }  
     }    
@@ -884,6 +890,7 @@ public class API implements APIProvider {
             return new String[]{String.valueOf(rs.getInt(1)), rs.getString("name")};
 
         } catch (SQLException e) {
+            System.out.println("here3");
             throw e;
         }  
     }
@@ -901,6 +908,7 @@ public class API implements APIProvider {
 
         } catch (SQLException e) {
             e.printStackTrace();
+            System.out.println("here4");
             return -1;
         }  
     }
@@ -918,6 +926,7 @@ public class API implements APIProvider {
 
         } catch (SQLException e) {
             e.printStackTrace();
+            System.out.println("here5");
             return -1;
         }  
     }
@@ -934,6 +943,7 @@ public class API implements APIProvider {
             return rs.getInt(1);
 
         } catch (SQLException e) {
+            System.out.println("here6");
             e.printStackTrace();
             return -1;
         }       
@@ -951,6 +961,7 @@ public class API implements APIProvider {
             return rs.getInt(1);
 
         } catch (SQLException e) {
+            System.out.println("here7");
             e.printStackTrace();
             return -1;
         }       

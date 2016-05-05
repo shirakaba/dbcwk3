@@ -40,7 +40,7 @@ public class Server extends RouterNanoHTTPD {
         addRoute("/topic0/:id", SimpleTopicHandler.class);
         
         addRoute("/newforum", NewForumHandler.class);
-        addRoute("/createforum", CreateForumHandler.class);
+        addRoute("/createforum", CreateForumHandler.class); //createForum
         
         addRoute("/newtopic/:id", NewTopicHandler.class);
         addRoute("/createtopic", CreateTopicHandler.class);

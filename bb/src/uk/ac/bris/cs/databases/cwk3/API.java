@@ -103,7 +103,7 @@ public class API implements APIProvider {
             }
 
         } catch (SQLException e) {
-//            return Result.fatal(e.getMessage()); // TODO: need any exception handling here?
+            return Result.fatal(e.getMessage());
         }
         return Result.success(list); // like getLikers, we return successful even if the list is empty.
     }
@@ -350,23 +350,33 @@ public class API implements APIProvider {
     // TO Phan
     @Override
     public Result createForum(String title) {
-        final String STMT = "SELECT title FROM Forum WHERE title = ?;";
-        try (PreparedStatement p = c.prepareStatement(STMT)) {
+        final String selectSTMT = "SELECT title FROM Forum WHERE title = ?;";
+        try (PreparedStatement p = c.prepareStatement(selectSTMT)) {
             p.setString(1, title);
             ResultSet rs = p.executeQuery();
-            if (title.isEmpty()) {
-                return Result.failure ("Null");
-            } else if (rs.next()) {
+            if (rs.next()) {
                 return Result.failure ("Title already existed");
-            } else {
-                p.executeQuery("INSERT INTO Forum title VALUES ?;");
-                p.setString(1, title);
-                p.executeUpdate();
+            }
+            else {
+                final String insertSTMT = "INSERT INTO Forum (title) VALUES (?);";
+                if  (title== null || title.isEmpty()) {
+                    return Result.failure ("Null");
+                }
+                try (PreparedStatement p1 = c.prepareStatement(insertSTMT)) {
+                    p1.setString(1, title);
+                    p1.execute();
+                    c.commit();
+                    return Result.success();
+                }
             }
         } catch (SQLException e) {
+            try {
+                c.rollback();
+            } catch (SQLException f) {
+                return Result.fatal(f.getMessage());
+            }
             return Result.fatal(e.getMessage());
         }
-        return Result.success();
     }
 
 //
@@ -658,7 +668,7 @@ public class API implements APIProvider {
      * @return success (even if it was a no-op), failure if the person or topic
      * does not exist and fatal in case of db errors.
      */
-    // TO PHAN
+    // Alex
     @Override
     public Result favouriteTopic(String username, long topicId, boolean favourite) {
        final String STMT;

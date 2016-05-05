@@ -829,8 +829,14 @@ public class API implements APIProvider {
     //expects prior validation of username :)
     private ArrayList<TopicSummaryView> getTopicSummaryView (String username) throws SQLException {
         ArrayList<TopicSummaryView> list = new ArrayList<>();
-        final String STMT = "SELECT topicId, forumId, title, name, username FROM Person " +
-                            "JOIN FavouritedTopic ON id = PersonId WHERE username = ? ;";
+//        final String STMT = "SELECT topicId, forumId, title, name, username FROM Person " +
+//                            "JOIN FavouritedTopic ON id = PersonId WHERE username = ? ;";
+        final String STMT = "SELECT Topic.Id, Forum.Id, Topic.title, Person.name, Person.username FROM Person " +
+                            "JOIN FavouritedTopic ON Person.id = FavouritedTopic.PersonId " +
+                            "JOIN Post ON Post.PersonId = Person.id " +
+                            "JOIN Topic ON Topic.id = Post.TopicId " +
+                            "JOIN Forum ON Forum.id = ForumId " +
+                            "WHERE username = ?;";
 
         try (PreparedStatement p = c.prepareStatement(STMT)) {
             p.setString(1, username);
@@ -844,7 +850,7 @@ public class API implements APIProvider {
 
             while (rs.next()) {
                 list.add(new TopicSummaryView(rs.getLong("topicId"),
-                                              Long.parseLong(rs.getString("forumId")),
+                                              rs.getLong("forumId"),
                                               rs.getString("title"),
                                               topicPostCount,
                                               Integer.parseInt(topicCreatedDatePerson[0]),
@@ -857,6 +863,7 @@ public class API implements APIProvider {
 
             return list;
         }
+
     }
 
     //expects prior validation of topic

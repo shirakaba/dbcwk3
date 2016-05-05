@@ -750,18 +750,135 @@ public class API implements APIProvider {
             p.setString(1, username);
 
             ResultSet rs = p.executeQuery();
-
+            
             return Result.success(new AdvancedPersonView(
                     rs.getString("name"),
                     rs.getString("username"),
                     rs.getString("studentId"),
-		            1,//getPersonalLikedPostCount(username),
-		            1,//getPersonalFavouritedTopicCount(username),
-		            new ArrayList<TopicSummaryView>()));
+		            getPersonalLikedPostCount(username),
+		            getPersonalFavouritedTopicCount(username),
+		            getTopicSummaryView(username)));
         } catch (SQLException e) {
             e.printStackTrace();
             return Result.fatal(e.getMessage());
+        } catch (Exception e){
+            e.printStackTrace();
+            return Result.fatal(e.getMessage());
         }
+    }
+
+    //expects prior validation of username :)
+    private ArrayList<TopicSummaryView> getTopicSummaryView(String username) throws Exception{
+        final String STMT = "SELECT topicId, forumId, title, name, username FROM Person " +
+                            "JOIN FavouritedTopic ON id = PersonId WHERE username = '?';";
+
+        try (PreparedStatement p = c.prepareStatement(STMT)) {
+
+            p.setString(1, username);
+
+            ResultSet rs = p.executeQuery();
+
+            int topicLikedCount = getTopicLikedCount(rs.getLong("topicId"));
+            int topicPostCount = getTopicPostCount(rs.getLong("topicId"));
+            String[] latestPostDateName = getLatestPostDateName(rs.getLong("topicId"));
+            String[] topicCreatedDatePerson = getTopicCreatedDatePerson(rs.getLong("topicId"));
+
+            ArrayList<TopicSummaryView> list = new ArrayList<TopicSummaryView>();
+
+            while (rs.next()) {
+                list.add(new TopicSummaryView(rs.getLong("topicId"),
+                                              Long.parseLong(rs.getString("forumId")),
+                                              rs.getString("title"),
+                                              topicPostCount,
+                                              Integer.parseInt(topicCreatedDatePerson[0]),
+                                              Integer.parseInt(latestPostDateName[0]),
+                                              latestPostDateName[0],
+                                              topicLikedCount,
+                                              topicCreatedDatePerson[1],
+                                              topicCreatedDatePerson[2]));
+            }
+
+            return list;
+
+        } catch (SQLException e) {
+            throw e;
+        }           
+    }
+
+    private String[] getTopicCreatedDatePerson(long topicId) throws Exception{
+        if (validateTopicId(topicId) == null) throw new Exception("TopicId did not exist.");
+
+        final String STMT = "SELECT date, Person.name, Person.username FROM Topic " +
+                            "JOIN Post ON Post.TopicId = Topic.id " +
+                            "JOIN Person ON PersonId = Person.id " +
+                            "WHERE Topic.id = 1 " +
+                            "ORDER BY `date` ASC LIMIT 1;";
+        try (PreparedStatement p = c.prepareStatement(STMT)) {
+
+            p.setLong(1, topicId);
+
+            ResultSet rs = p.executeQuery();
+
+            return new String[]{String.valueOf(rs.getInt(1)), rs.getString("name"), rs.getString("username")};
+
+        } catch (SQLException e) {
+            throw e;
+        }  
+    }    
+
+    private String[] getLatestPostDateName(long topicId) throws Exception{
+        if (validateTopicId(topicId) == null) throw new Exception("TopicId did not exist.");
+
+        final String STMT = "SELECT date, Person.name FROM Topic " +
+                            "JOIN Post ON Post.TopicId = Topic.id " +
+                            "JOIN Person ON PersonId = Person.id " +
+                            "WHERE Topic.id = ?" +
+                            "ORDER BY `date` DESC LIMIT 1;";
+        try (PreparedStatement p = c.prepareStatement(STMT)) {
+
+            p.setLong(1, topicId);
+
+            ResultSet rs = p.executeQuery();
+
+            return new String[]{String.valueOf(rs.getInt(1)), rs.getString("name")};
+
+        } catch (SQLException e) {
+            throw e;
+        }  
+    }
+
+    private int getTopicLikedCount(long topicId) throws Exception{
+        if (validateTopicId(topicId) == null) throw new Exception("TopicId did not exist.");
+        final String STMT = "SELECT COUNT(*) FROM LikedTopic JOIN Topic ON TopicId = Topic.id WHERE Topic.id = ?;";
+        try (PreparedStatement p = c.prepareStatement(STMT)) {
+
+            p.setLong(1, topicId);
+
+            ResultSet rs = p.executeQuery();
+
+            return rs.getInt(1);
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return -1;
+        }  
+    }
+
+    private int getTopicPostCount(long topicId) throws Exception{
+        if (validateTopicId(topicId) == null) throw new Exception("TopicId did not exist.");
+        final String STMT = "SELECT COUNT(*) FROM Topic JOIN Post ON TopicId = Topic.id WHERE Topic.id = 1;";
+        try (PreparedStatement p = c.prepareStatement(STMT)) {
+
+            p.setLong(1, topicId);
+
+            ResultSet rs = p.executeQuery();
+
+            return rs.getInt(1);
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return -1;
+        }  
     }
 
     //expects prior validation of username :)

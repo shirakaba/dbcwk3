@@ -443,7 +443,7 @@ public class API implements APIProvider {
     public Result<ForumView> getForum(long id) {
         final String STMT = "SELECT Forum.id AS id, Forum.title AS title, Topic.id AS topicId, Topic.title AS topicTitle "
                 + "FROM Forum INNER JOIN Topic ON Forum.id = Topic.ForumId "
-                + "WHERE forumId = ? ORDER BY Topic ASC;";
+                + "WHERE forumId = ? ORDER BY Topic.title ASC;";
         List<SimpleTopicSummaryView> topics = new ArrayList<>();
         try (PreparedStatement p = c.prepareStatement(STMT)) {
             p.setInt(1, (int) id);

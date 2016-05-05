@@ -24,7 +24,7 @@ import uk.ac.bris.cs.databases.api.SimplePostView;
 import uk.ac.bris.cs.databases.api.SimpleTopicView;
 import uk.ac.bris.cs.databases.api.SimpleTopicSummaryView;
 import uk.ac.bris.cs.databases.api.TopicView;
-
+import uk.ac.bris.cs.databases.api.TopicSummaryView;
 /**
  *
  * @author csxdb
@@ -742,9 +742,67 @@ public class API implements APIProvider {
     }
 
 	//TO ALEX
+  /*  public AdvancedPersonView(String name, String username, String studentId,
+            int topicLikes, int postLikes, List<TopicSummaryView> favourites)*/
+
     @Override
     public Result<AdvancedPersonView> getAdvancedPersonView(String username) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        final String STMT = "SELECT name, username, studentId FROM Person WHERE username = ?;";
+
+        if (username.equals("")) return Result.failure("Username was empty or null.");
+
+        try (PreparedStatement p = c.prepareStatement(STMT)) {
+            if (validateUsername(username) == null) return Result.failure("Username did not exist.");
+
+            p.setString(1, username);
+
+            ResultSet rs = p.executeQuery();
+
+            return Result.success(new AdvancedPersonView(
+                    rs.getString("name"),
+                    rs.getString("username"),
+                    rs.getString("studentId"),
+		            getPersonalLikedPostCount(username),
+		            getPersonalFavouritedTopicCount(username),
+		            new ArrayList<TopicSummaryView>()));
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return Result.fatal(e.getMessage());
+        }
+    }
+
+    //expects prior validation of username :)
+    private int getPersonalLikedPostCount(String username){
+        final String STMT = "SELECT COUNT(*) FROM Person JOIN LikedPost ON id = PersonId WHERE username = '?';";
+        try (PreparedStatement p = c.prepareStatement(STMT)) {
+
+            p.setString(1, username);
+
+            ResultSet rs = p.executeQuery();
+
+            return rs.getInt(1);
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return -1;
+        }       
+    }
+
+    //expects prior validation of username :)
+    private int getPersonalFavouritedTopicCount(String username){
+        final String STMT = "SELECT COUNT(*) FROM Person JOIN FavouritedTopic ON id = PersonId WHERE username = '?';";
+        try (PreparedStatement p = c.prepareStatement(STMT)) {
+
+            p.setString(1, username);
+
+            ResultSet rs = p.executeQuery();
+
+            return rs.getInt(1);
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return -1;
+        }       
     }
 
     @Override

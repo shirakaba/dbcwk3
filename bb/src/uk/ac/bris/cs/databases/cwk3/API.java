@@ -762,8 +762,8 @@ public class API implements APIProvider {
                     rs.getString("name"),
                     rs.getString("username"),
                     rs.getString("studentId"),
-		            getPersonalLikedPostCount(username),
-		            getPersonalFavouritedTopicCount(username),
+		            1,//getPersonalLikedPostCount(username),
+		            1,//getPersonalFavouritedTopicCount(username),
 		            new ArrayList<TopicSummaryView>()));
         } catch (SQLException e) {
             e.printStackTrace();

@@ -102,9 +102,8 @@ public class API implements APIProvider {
                 list.add(new SimpleForumSummaryView(rs.getLong("id"), rs.getString("title")));
             }
 
-//            return Result.success(list);
         } catch (SQLException e) {
-//            return Result.fatal(e.getMessage()); // TODO: need any exception handling here?
+            return Result.fatal(e.getMessage());
         }
         return Result.success(list); // like getLikers, we return successful even if the list is empty.
     }
@@ -280,25 +279,31 @@ public class API implements APIProvider {
 //        }
 //    }
 
-    //TO ALEX - DONE [fixed liberally by Jamie (sorry)]
+    //TO ALEX - DONE [fixed liberally by Jamie (sorry)] - accept empty forum now 
     @Override
     public Result<List<ForumSummaryView>> getForums() {
         List<ForumSummaryView> ll = new ArrayList<>();
         final String STMT =
                 "SELECT Forum.id AS fId, Forum.title AS fTitle, Topic.id AS tId, Topic.title AS tTitle FROM Forum " +
-                        "JOIN Topic ON Topic.ForumId = Forum.id " +
-                        "JOIN Post ON Post.TopicId = Topic.id " +
+                        "LEFT JOIN Topic ON Topic.ForumId = Forum.id " +
+                        "LEFT JOIN Post ON Post.TopicId = Topic.id " +
                         "GROUP BY Forum.id " +
                         "ORDER BY Forum.title ASC, `date` DESC, Post.id DESC;";
 
         try (PreparedStatement p = c.prepareStatement(STMT)) {
             ResultSet rs = p.executeQuery();
-
+            
             while (rs.next()) {
-                ll.add(new ForumSummaryView(rs.getLong("fId"), rs.getString("fTitle"),
-                        // This is the the topic most recently posted in.
+                String title = rs.getString("tTitle");
+                if (title == null) {
+                    ll.add(new ForumSummaryView(rs.getLong("fId"), rs.getString("fTitle"), null));
+    
+                } else {
+                    ll.add(new ForumSummaryView(rs.getLong("fId"), rs.getString("fTitle"),
+                    // This is the the topic most recently posted in.
                         new SimpleTopicSummaryView(rs.getLong("tId"), rs.getLong("fId"), rs.getString("tTitle"))
-                ));
+                    ));
+                }
             }
 //            return Result.success(ll);
         } catch (SQLException e) {
@@ -318,8 +323,33 @@ public class API implements APIProvider {
     // TO Phan
     @Override
     public Result createForum(String title) {
-        final String STMT = "SELECT title FROM Forum WHERE title = ?;";
-        return Result.failure("not done");
+        final String selectSTMT = "SELECT title FROM Forum WHERE title = ?;";
+        try (PreparedStatement p = c.prepareStatement(selectSTMT)) {
+            p.setString(1, title);
+            ResultSet rs = p.executeQuery();
+            if (rs.next()) {
+                return Result.failure ("Title already existed");
+            }
+            else {
+                final String insertSTMT = "INSERT INTO Forum (title) VALUES (?);";
+                if  (title== null || title.isEmpty()) {
+                    return Result.failure ("Null");
+                }
+                try (PreparedStatement p1 = c.prepareStatement(insertSTMT)) {
+                    p1.setString(1, title);
+                    p1.execute();
+                    c.commit();
+                    return Result.success();
+                }
+            }
+        } catch (SQLException e) {
+            try {
+                c.rollback();
+            } catch (SQLException f) {
+                return Result.fatal(f.getMessage());
+            }
+            return Result.fatal(e.getMessage());
+        }
     }
 
 //
@@ -611,7 +641,7 @@ public class API implements APIProvider {
      * @return success (even if it was a no-op), failure if the person or topic
      * does not exist and fatal in case of db errors.
      */
-    // TO PHAN
+    // Alex
     @Override
     public Result favouriteTopic(String username, long topicId, boolean favourite) {
        final String STMT;
@@ -715,7 +745,14 @@ public class API implements APIProvider {
 
     @Override
     public Result<List<AdvancedForumSummaryView>> getAdvancedForums() {
+        /*final String STMT = "SELECT Forum.id, title, topic FROM Forum ORDER BY title ASC;";
+        List<AdvancedForumSummaryView> = new ArrayList<> ();
+        
+        try (PreparedStatement p = c.prepareStatement(STMT)) {
+            p.setString(1, id)
+        }*/
         throw new UnsupportedOperationException("Not supported yet.");
+        
     }
 
 	//TO ALEX
@@ -734,15 +771,18 @@ public class API implements APIProvider {
             p.setString(1, username);
 
             ResultSet rs = p.executeQuery();
-
+            
             return Result.success(new AdvancedPersonView(
                     rs.getString("name"),
                     rs.getString("username"),
                     rs.getString("studentId"),
-		            1,//getPersonalLikedPostCount(username),
-		            1,//getPersonalFavouritedTopicCount(username),
-		            new ArrayList<TopicSummaryView>()));
+                    countRowsOfTable(rs.getString("username"), CountRowsOfPersonMode.PERSON_LIKES),
+                    countRowsOfTable(rs.getString("username"), CountRowsOfPersonMode.PERSON_FAVOURITES),
+		            getTopicSummaryView(username)));
         } catch (SQLException e) {
+            e.printStackTrace();
+            return Result.fatal(e.getMessage());
+        } catch (Exception e){
             e.printStackTrace();
             return Result.fatal(e.getMessage());
         }
@@ -767,7 +807,7 @@ public class API implements APIProvider {
     private int countRowsOfTable(String username, CountRowsOfPersonMode mode) throws SQLException {
         final String getTopicId;
 
-        switch(mode){
+        switch (mode) {
             case PERSON_LIKES:
                 getTopicId = "SELECT count(*) AS count FROM Person JOIN LikedPost ON id = PersonId WHERE username = ?;";
                 break;
@@ -784,6 +824,76 @@ public class API implements APIProvider {
             ResultSet rs = p.executeQuery();
             return rs.getInt("count");
         }
+    }
+
+    //expects prior validation of username :)
+    private ArrayList<TopicSummaryView> getTopicSummaryView (String username) throws SQLException {
+        ArrayList<TopicSummaryView> list = new ArrayList<>();
+        final String STMT = "SELECT topicId, forumId, title, name, username FROM Person " +
+                            "JOIN FavouritedTopic ON id = PersonId WHERE username = ? ;";
+
+        try (PreparedStatement p = c.prepareStatement(STMT)) {
+            p.setString(1, username);
+
+            ResultSet rs = p.executeQuery();
+
+            int topicLikedCount = countRowsOfTable(rs.getLong("topicId"), CountRowsOfTopicMode.TOPIC_LIKES);
+            int topicPostCount = countRowsOfTable(rs.getLong("topicId"), CountRowsOfTopicMode.TOPIC_POSTS);
+            String[] latestPostDateName = getLatestPostDateName(rs.getLong("topicId"));
+            String[] topicCreatedDatePerson = getTopicCreatedDatePerson(rs.getLong("topicId"));
+
+            while (rs.next()) {
+                list.add(new TopicSummaryView(rs.getLong("topicId"),
+                                              Long.parseLong(rs.getString("forumId")),
+                                              rs.getString("title"),
+                                              topicPostCount,
+                                              Integer.parseInt(topicCreatedDatePerson[0]),
+                                              Integer.parseInt(latestPostDateName[0]),
+                                              latestPostDateName[0],
+                                              topicLikedCount,
+                                              topicCreatedDatePerson[1],
+                                              topicCreatedDatePerson[2]));
+            }
+
+            return list;
+        }
+    }
+
+    //expects prior validation of topic
+    private String[] getTopicCreatedDatePerson(long topicId) throws SQLException {
+//        if (validateTopicId(topicId) == null) throw new Exception("TopicId did not exist.");
+
+        final String STMT = "SELECT `date`, Person.name AS name, Person.username AS username FROM Topic " +
+                            "JOIN Post ON Post.TopicId = Topic.id " +
+                            "JOIN Person ON PersonId = Person.id " +
+                            "WHERE Topic.id = ? " +
+                            "ORDER BY `date` ASC LIMIT 1;";
+        try (PreparedStatement p = c.prepareStatement(STMT)) {
+            p.setLong(1, topicId);
+
+            ResultSet rs = p.executeQuery();
+
+            return new String[]{String.valueOf(rs.getInt(1)), rs.getString("name"), rs.getString("username")};
+        }
+    }
+
+    //expects prior validation of topic
+    private String[] getLatestPostDateName(long topicId) throws SQLException {
+//        if (validateTopicId(topicId) == null) throw new Exception("TopicId did not exist.");
+
+        final String STMT = "SELECT `date`, Person.name AS name FROM Topic " +
+                            "JOIN Post ON Post.TopicId = Topic.id " +
+                            "JOIN Person ON PersonId = Person.id " +
+                            "WHERE Topic.id = ? " +
+                            "ORDER BY `date` DESC LIMIT 1;";
+        try (PreparedStatement p = c.prepareStatement(STMT)) {
+
+            p.setLong(1, topicId);
+
+            ResultSet rs = p.executeQuery();
+
+            return new String[]{String.valueOf(rs.getInt(1)), rs.getString("name")};
+        }  
     }
 
     /**
@@ -806,10 +916,10 @@ public class API implements APIProvider {
 
         switch(mode){
             case TOPIC_LIKES:
-                getTopicId = "SELECT count(*) AS count FROM LikedTopic WHERE TopicId = ?;";
+                getTopicId = "SELECT count(*) AS count FROM LikedTopic JOIN Topic ON TopicId = Topic.id WHERE Topic.id = ?;";
                 break;
             case TOPIC_POSTS:
-                getTopicId = "SELECT count(*) AS count FROM Post WHERE TopicId = ?;";
+                getTopicId = "SELECT count(*) AS count FROM Topic JOIN Post ON TopicId = Topic.id WHERE TopicId = ?;";
                 break;
             default:
                 throw new UnsupportedOperationException("An unimplemented branch of the countRowsOfTable method was used.");

@@ -688,7 +688,7 @@ public class API implements APIProvider {
             }
             return Result.fatal(e.getMessage());
         }
-        throw new UnsupportedOperationException("Not supported yet.");
+
     }
 
     @Override
@@ -711,3 +711,5 @@ public class API implements APIProvider {
     public Result likePost(String username, long topicId, int post, boolean like) {
         throw new UnsupportedOperationException("Not supported yet.");  
    }
+
+}

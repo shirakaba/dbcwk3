@@ -54,7 +54,7 @@ public class API implements APIProvider {
     public Result<PersonView> getPersonView(String username) {
         final String STMT = "SELECT name, username, studentId FROM Person WHERE username = ?;";
 
-        if (username.equals("")) return Result.failure("Username was empty or null.");
+        if (username.isEmpty()) return Result.failure("Username was empty or null.");
 
         try (PreparedStatement p = c.prepareStatement(STMT)) {
             if (vt.validateUsername(username) == null) return Result.failure("Username did not exist.");
@@ -297,13 +297,14 @@ public class API implements APIProvider {
         final String selectSTMT = "SELECT title FROM Forum WHERE title = ?;";
         final String insertSTMT = "INSERT INTO Forum (title) VALUES (?);";
 
+        if (title.isEmpty()) return Result.failure("Title provided must not be empty/null.");
+
         try (PreparedStatement p = c.prepareStatement(selectSTMT);
              PreparedStatement p1 = c.prepareStatement(insertSTMT)) {
             p.setString(1, title);
             ResultSet rs = p.executeQuery();
 
             if (rs.next()) return Result.failure("Title provided must be unique.");
-            if (title.isEmpty()) return Result.failure("Title provided must not be empty/null.");
 
             p1.setString(1, title);
             p1.execute();
@@ -325,7 +326,7 @@ public class API implements APIProvider {
     @Override
     public Result createPost(long topicId, String username, String text) {
         final String insertSTMT = "INSERT INTO Post (`date`, `text`, PersonId, TopicId) VALUES (?, ?, ?, ?);";
-        if (text.equals("")) return Result.failure("Posts cannot have empty text.");
+        if (text.isEmpty()) return Result.failure("Posts cannot have empty text.");
 
         try (PreparedStatement p1 = c.prepareStatement(insertSTMT)) {
             Long personId = vt.validateUsername(username);
@@ -355,9 +356,9 @@ public class API implements APIProvider {
     @Override
     public Result addNewPerson(String name, String username, String studentId) {
         final String STMT = "INSERT INTO Person (username, name, studentId) VALUES (?, ?, ?)";
-        if (name.equals("")) return Result.failure("name cannot have empty text.");
-        if (username.equals("")) return Result.failure("username cannot have empty text.");
-        if (studentId.equals("")) return Result.failure("studentId cannot have empty text.");
+        if (name.isEmpty()) return Result.failure("name cannot have empty text nor be null.");
+        if (username.isEmpty()) return Result.failure("username cannot have empty text nor be null.");
+        if (studentId.isEmpty()) return Result.failure("studentId cannot have empty text nor be null.");
 
         try (PreparedStatement p = c.prepareStatement(STMT)) {
             p.setString(1, username);
@@ -552,8 +553,8 @@ public class API implements APIProvider {
         final String getTopicIdSTMT = "SELECT id FROM Topic WHERE title = ?;";
         final String STMT = "INSERT INTO Post (`date`, `text`, PersonId, TopicId) VALUES (?, ?, ?, ?);";
 
-        if (title.equals("")) return Result.failure("title cannot be empty.");
-        if (text.equals("")) return Result.failure("text cannot be empty.");
+        if (title.isEmpty()) return Result.failure("title cannot be empty.");
+        if (text.isEmpty()) return Result.failure("text cannot be empty.");
 
         try (PreparedStatement p2 = c.prepareStatement(createTopicSTMT);
              PreparedStatement p3 = c.prepareStatement(getTopicIdSTMT);
@@ -613,7 +614,7 @@ public class API implements APIProvider {
     public Result<AdvancedPersonView> getAdvancedPersonView(String username) {
         final String STMT = "SELECT name, username, studentId FROM Person WHERE username = ?;";
 
-        if (username.equals("")) return Result.failure("Username was empty or null.");
+        if (username.isEmpty()) return Result.failure("Username was empty or null.");
 
         try (PreparedStatement p = c.prepareStatement(STMT)) {
             if (vt.validateUsername(username) == null) return Result.failure("Username did not exist.");

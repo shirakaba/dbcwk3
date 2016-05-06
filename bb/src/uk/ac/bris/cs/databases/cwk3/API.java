@@ -451,7 +451,7 @@ public class API implements APIProvider {
             String forumName = rs.getString("forumName");
             String title = rs.getString("tTitle");
 
-            for (int postNumber = 1; rs.next(); postNumber++) {
+            for (int postNumber = 1 + page * 10; rs.next(); postNumber++) {
                 posts.add(new PostView(
                                 forumId,
                                 topicId,

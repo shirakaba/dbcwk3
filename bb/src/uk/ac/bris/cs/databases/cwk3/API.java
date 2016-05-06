@@ -671,13 +671,16 @@ public class API implements APIProvider {
 
             ResultSet rs = p.executeQuery();
 
+            ArrayList<TopicSummaryView> topicSummaryView = getTopicSummaryView(username);
+            if (topicSummaryView == null) return Result.failure("failed to make topicSummaryView.");
+
             return Result.success(new AdvancedPersonView(
                     rs.getString("name"),
                     rs.getString("username"),
                     rs.getString("studentId"),
                     countRowsOfTable(username, CountRowsOfPersonMode.TOPIC_LIKES),
                     countRowsOfTable(username, CountRowsOfPersonMode.POST_LIKES),
-		            getTopicSummaryView(username)));
+                    topicSummaryView));
         } catch (SQLException e) {
             e.printStackTrace();
             return Result.fatal(e.getMessage());
@@ -748,9 +751,9 @@ public class API implements APIProvider {
                 int topicPostCount = countRowsOfTopicTable(currentTopicId, CountRowsOfTableMode.POSTS);
 
                 ExtremePostView latestPostDatePerson = getExtremeDatePoster(currentTopicId, getExtremeDatePosterMode.NEWEST);
-                if(latestPostDatePerson == null) return null; // TODO: assess nullness of list by receiver.
+                if(latestPostDatePerson == null) return null;
                 ExtremePostView firstPostDatePerson = getExtremeDatePoster(currentTopicId, getExtremeDatePosterMode.CREATION);
-                if(firstPostDatePerson == null) return null; // TODO: assess nullness of list by receiver.
+                if(firstPostDatePerson == null) return null;
 
                 list.add(new TopicSummaryView(currentTopicId,
                                               rs.getLong("forumId"),

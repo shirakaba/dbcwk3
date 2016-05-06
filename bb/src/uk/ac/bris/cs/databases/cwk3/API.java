@@ -549,37 +549,24 @@ public class API implements APIProvider {
     @Override
     public Result createTopic(long forumId, String username, String title, String text) {
         final String createTopicSTMT = "INSERT INTO Topic (title, ForumId) VALUES(?, ?);";
-        final String getTopicIdSTMT = "SELECT id FROM Topic WHERE title = ?;";
-        final String STMT = "INSERT INTO Post (`date`, `text`, PersonId, TopicId) VALUES (?, ?, ?, ?);";
 
         if (title.equals("")) return Result.failure("title cannot be empty.");
         if (text.equals("")) return Result.failure("text cannot be empty.");
 
-        try (PreparedStatement p2 = c.prepareStatement(createTopicSTMT);
-             PreparedStatement p3 = c.prepareStatement(getTopicIdSTMT);
-             PreparedStatement p1 = c.prepareStatement(STMT)) {
+        try (PreparedStatement p1 = c.prepareStatement(createTopicSTMT)) {
 
             Long personId = vt.validateUsername(username);
             if (personId == null) return Result.failure("username did not exist.");
             if (vt.validateForumId(forumId) == null)
                 return Result.failure("Forum id did not exist, or forum has no topics under it (illegal)."); // TODO: ask about failure messages not printing.
 
-            p2.setString(1, title);
-            p2.setLong(2, forumId);
-            p2.execute();
-
-            p3.setString(1, title);
-            ResultSet rs3 = p3.executeQuery();
-            long topicId = rs3.getLong(1);
-
-            long dateInSecs = new Date().getTime() / MS_TO_SECONDS;
-            p1.setLong(1, dateInSecs);
-            p1.setString(2, text);
-            p1.setLong(3, personId);
-            p1.setLong(4, topicId);
-
+            p1.setString(1, title);
+            p1.setLong(2, forumId);
             p1.execute();
+
             c.commit();
+
+            createPost(getTopicId(title), username, text);
 
             return Result.success();
         } catch (SQLException e) {
@@ -589,6 +576,24 @@ public class API implements APIProvider {
                 return Result.fatal(f.getMessage());
             }
             return Result.fatal(e.getMessage());
+        }
+    }
+
+
+    /**
+     * returns the topicId using topic title
+     *
+     * @param title - the title of the topic
+     * @return the topicId
+     * @throws SQLException on failure
+     */
+    private long getTopicId(String title) throws SQLException{
+        final String getTopicIdSTMT = "SELECT id FROM Topic WHERE title = ?;";        
+
+        try (PreparedStatement p2 = c.prepareStatement(getTopicIdSTMT)){
+            p2.setString(1, title);
+            ResultSet rs2 = p2.executeQuery();
+            return rs2.getLong(1);
         }
     }
 

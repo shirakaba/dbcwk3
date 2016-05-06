@@ -396,7 +396,7 @@ public class API implements APIProvider {
             String forumTitle = vt.validateForumId(id);
             if (forumTitle == null) return Result.failure("Forum id did not exist, or forum has no topics under it.");
 
-            p.setLong(1, (int) id);
+            p.setLong(1, id);
             ResultSet rs = p.executeQuery();
 
             while (rs.next()) topics.add(new SimpleTopicSummaryView(rs.getLong("topicId"), id, rs.getString("topicTitle")));
@@ -751,8 +751,10 @@ public class API implements APIProvider {
                 int topicPostCount = countRowsOfTopicTable(currentTopicId, CountRowsOfTableMode.POSTS);
 
                 ExtremePostView latestPostDatePerson = getExtremeDatePoster(currentTopicId, getExtremeDatePosterMode.NEWEST);
+                System.out.println(String.format("latest post date is %d", latestPostDatePerson.getDate()));
                 if(latestPostDatePerson == null) return null;
                 ExtremePostView firstPostDatePerson = getExtremeDatePoster(currentTopicId, getExtremeDatePosterMode.CREATION);
+                System.out.println(String.format("first post date is %d", firstPostDatePerson.getDate()));
                 if(firstPostDatePerson == null) return null;
 
                 list.add(new TopicSummaryView(currentTopicId,

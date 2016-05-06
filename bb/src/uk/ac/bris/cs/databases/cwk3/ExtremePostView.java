@@ -3,7 +3,7 @@ package uk.ac.bris.cs.databases.cwk3;
 import uk.ac.bris.cs.databases.util.Params;
 
 /**
- * Created by jamiebirch on 06/05/2016.
+ * View of a Post made by a Person that is either first or last in a Topic.
  */
 public class ExtremePostView {
 
@@ -18,6 +18,12 @@ public class ExtremePostView {
     */
     private final int date;
 
+    /**
+     *
+     * @param date - of Post creation or last Post in Topic.
+     * @param name - of Person who made the Post.
+     * @param username - of Person who made the Post.
+     */
     public ExtremePostView(int date, String name, String username) {
 
         Params.cannotBeEmpty(name);

@@ -632,8 +632,8 @@ public class API implements APIProvider {
                     rs.getString("name"),
                     rs.getString("username"),
                     rs.getString("studentId"),
-                    countRowsOfTable(username, CountRowsOfPersonMode.PERSON_LIKES),
-                    countRowsOfTable(username, CountRowsOfPersonMode.PERSON_FAVOURITES),
+                    countRowsOfTable(username, CountRowsOfPersonMode.TOPIC_LIKES),
+                    countRowsOfTable(username, CountRowsOfPersonMode.POST_LIKES),
 		            getTopicSummaryView(username)));
         } catch (SQLException e) {
             e.printStackTrace();
@@ -642,30 +642,30 @@ public class API implements APIProvider {
     }
 
     /**
-     * Switches the mode of countRowsOfTable() to counting Likes (PERSON_LIKES) or Favourites (PERSON_FAVOURITES).
+     * Switches the mode of countRowsOfTable() to counting Likes (TOPIC_LIKES) or Favourites (POST_LIKES).
      */
     private enum CountRowsOfPersonMode {
-        PERSON_LIKES,
-        PERSON_FAVOURITES
+        TOPIC_LIKES,
+        POST_LIKES
     }
 
     /**
-     * Counts the number of entries (rows) in a table detailing the Posts Or Likes for a  given Topic.
+     * Counts the number of entries (rows) in a table detailing the number of LikedTopic or LikedPost by a username.
      * Expects prior validation of username.
      *
      * @param username - the username to count Favourites/Likes for.
-     * @param mode - counts Posts if CountRowsOfPersonMode.TOPIC_POSTS; otherwise, counts TOPIC_LIKES.
+     * @param mode - counts LikedPost if POST_LIKES; or LikedTopic if TOPIC_LIKES.
      * @return the counted number of Posts/Likes.. Otherwise, null.
      */
     private int countRowsOfTable(String username, CountRowsOfPersonMode mode) throws SQLException {
         final String getTopicId;
 
         switch (mode) {
-            case PERSON_LIKES:
-                getTopicId = "SELECT count(*) AS count FROM Person JOIN LikedPost ON id = PersonId WHERE username = ?;";
+            case TOPIC_LIKES:
+                getTopicId = "SELECT count(*) AS count FROM Person JOIN LikedTopic ON id = PersonId WHERE username = ?;";
                 break;
-            case PERSON_FAVOURITES:
-                getTopicId = "SELECT count(*) AS count FROM Person JOIN FavouritedTopic ON id = PersonId WHERE username = ?;";
+            case POST_LIKES:
+                getTopicId = "SELECT count(*) AS count FROM Person JOIN LikedPost ON id = PersonId WHERE username = ?;";
                 break;
             default:
                 throw new UnsupportedOperationException("An unimplemented branch of the countRowsOfTable method was used.");

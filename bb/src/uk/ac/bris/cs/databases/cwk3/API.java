@@ -878,13 +878,17 @@ public class API implements APIProvider {
                             "JOIN Person ON PersonId = Person.id " +
                             "WHERE Topic.id = ? " +
                             "ORDER BY `date` ASC LIMIT 1;";
-        PreparedStatement p = c.prepareStatement(STMT);
+        try(PreparedStatement p = c.prepareStatement(STMT)){
 
-        p.setLong(1, topicId);
+            p.setLong(1, topicId);
 
-        ResultSet rs = p.executeQuery();
+            ResultSet rs = p.executeQuery();
 
-        return new String[]{String.valueOf(rs.getInt(1)), rs.getString("name"), rs.getString("username")};
+            return new String[]{String.valueOf(rs.getInt(1)), rs.getString("name"), rs.getString("username")};
+
+        } catch (SQLException e) {
+            return null;
+        } 
     }    
 
     private String[] getLatestPostDateName(long topicId) throws Exception{
@@ -895,40 +899,47 @@ public class API implements APIProvider {
                             "JOIN Person ON PersonId = Person.id " +
                             "WHERE Topic.id = ?" +
                             "ORDER BY `date` DESC LIMIT 1;";
-        PreparedStatement p = c.prepareStatement(STMT);
+        try(PreparedStatement p = c.prepareStatement(STMT)){
 
-        p.setLong(1, topicId);
+            p.setLong(1, topicId);
 
-        ResultSet rs = p.executeQuery();
+            ResultSet rs = p.executeQuery();
 
-        return new String[]{String.valueOf(rs.getInt(1)), rs.getString("name")};
-   
+            return new String[]{String.valueOf(rs.getInt(1)), rs.getString("name")};
+        } catch (SQLException e) {
+            return null;
+        } 
     }
 
     private int getTopicLikedCount(long topicId) throws Exception{
         if (validateTopicId(topicId) == null) throw new Exception("TopicId did not exist.");
         final String STMT = "SELECT COUNT(*) FROM LikedTopic JOIN Topic ON TopicId = Topic.id WHERE Topic.id = ?;";
-        PreparedStatement p = c.prepareStatement(STMT);
+        try(PreparedStatement p = c.prepareStatement(STMT)){
 
-        p.setLong(1, topicId);
+            p.setLong(1, topicId);
 
-        ResultSet rs = p.executeQuery();
+            ResultSet rs = p.executeQuery();
+            return rs.getInt(1);
 
-        return rs.getInt(1);
-
-        
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return -1;
+        }     
     }
 
     private int getTopicPostCount(long topicId) throws Exception{
         if (validateTopicId(topicId) == null) throw new Exception("TopicId did not exist.");
         final String STMT = "SELECT COUNT(*) FROM Topic JOIN Post ON TopicId = Topic.id WHERE Topic.id = ?;";
-        PreparedStatement p = c.prepareStatement(STMT);
+        try(PreparedStatement p = c.prepareStatement(STMT)){
 
-        p.setLong(1, topicId);
+            p.setLong(1, topicId);
 
-        ResultSet rs = p.executeQuery();
-
-        return rs.getInt(1);
+            ResultSet rs = p.executeQuery();
+	        return rs.getInt(1);
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return -1;
+        }
 
         
     }

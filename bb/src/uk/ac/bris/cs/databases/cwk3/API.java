@@ -25,7 +25,7 @@ public class API implements APIProvider {
         this.vt = new ValidityTester(c);
     }
 
-    /* implemented by Alex & Phan [tested] */
+    // implemented by Alex & Phan [tested]
     @Override
     public Result<Map<String, String>> getUsers() {
         final String STMT = "SELECT username, name FROM Person;";
@@ -39,14 +39,12 @@ public class API implements APIProvider {
                 map.put(rs.getString("username"), rs.getString("name"));
             }
 
-//            return Result.success(map);
         } catch (SQLException e) {
-//            return Result.fatal(e.getMessage());
+            return Result.fatal(e.getMessage());
         }
 
-        return Result.success(map); // TODO: ask whether we return the map even if it's empty, and what do when failing.
+        return Result.success(map);
     }
-
 
 
     // implemented by Alex [tested. Validation added by Jamie.]
@@ -54,7 +52,7 @@ public class API implements APIProvider {
     public Result<PersonView> getPersonView(String username) {
         final String STMT = "SELECT name, username, studentId FROM Person WHERE username = ?;";
 
-        if (username.isEmpty()) return Result.failure("Username was empty or null.");
+        if (username.isEmpty() || username == null) return Result.failure("Username was empty or null.");
 
         try (PreparedStatement p = c.prepareStatement(STMT)) {
             if (vt.validateUsername(username) == null) return Result.failure("Username did not exist.");
@@ -77,7 +75,7 @@ public class API implements APIProvider {
     // implemented by Phan [tested]
     @Override
     public Result<List<SimpleForumSummaryView>> getSimpleForums() {
-        final String STMT = "SELECT id, title FROM Forum ORDER BY title DESC;";
+        final String STMT = "SELECT id, title FROM Forum ORDER BY title COLLATE NOCASE ASC;";
         List<SimpleForumSummaryView> list = new ArrayList<>();
 
         try (PreparedStatement p = c.prepareStatement(STMT)) {
@@ -90,10 +88,11 @@ public class API implements APIProvider {
         } catch (SQLException e) {
             return Result.fatal(e.getMessage());
         }
-        return Result.success(list); // like getLikers, we return successful even if the list is empty.
+        return Result.success(list);
     }
 
-    // implemented by Phan [seems to be working in SQLite]
+    
+    // implemented by Phan
     @Override
     public Result<Integer> countPostsInTopic(long topicId) {
         int posts = 0;
@@ -102,14 +101,14 @@ public class API implements APIProvider {
             if(vt.validateTopicId(topicId) == null) return Result.failure("topic didn't exist.");
             posts = countRowsOfTopicTable(topicId, CountRowsOfTableMode.POSTS);
         } catch (SQLException e) {
-//            return Result.failure(e.getMessage()); // TODO: need any exception handling here?
+            return Result.failure(e.getMessage());
         }
         return Result.success(posts);
     }
 
 
 
-    // to Jamie [FINISHED, tested]
+    // implemented by Jamie
     @Override
     public Result<List<PersonView>> getLikers(long topicId) {
         List<PersonView> list = new ArrayList<>();
@@ -119,10 +118,9 @@ public class API implements APIProvider {
                         "INNER JOIN Person ON PersonId = Person.id " +
                         "WHERE TopicId = ? " +
                         "ORDER BY name ASC;";
-
+        
         try (PreparedStatement p = c.prepareStatement(STMT)) {
             if (vt.validateTopicId(topicId) == null) return Result.failure("topicId did not exist.");
-
             p.setLong(1, topicId);
             ResultSet rs = p.executeQuery();
 
@@ -142,7 +140,7 @@ public class API implements APIProvider {
      * Cons: we have to order by date every time and manually calculate the Post numbers, which
      * will take longer and longer as the Topic gets bigger and bigger. */
 
-    // to Jamie [FINISHED, tested]
+    // implemented by Jamie
     @Override
     public Result<SimpleTopicView> getSimpleTopic(long topicId) {
         List<SimplePostView> simplePostViews = new ArrayList<>();
@@ -152,10 +150,9 @@ public class API implements APIProvider {
                         "INNER JOIN Post ON Topic.id = Post.TopicId " +
                         "INNER JOIN Person ON Person.id = Post.PersonId " +
                         "WHERE TopicId = ? ORDER BY `date` ASC;";
-
+        
         try (PreparedStatement p = c.prepareStatement(STMT)) {
             if (vt.validateTopicId(topicId) == null) return Result.failure("topicId did not exist.");
-
             p.setString(1, String.valueOf(topicId));
             ResultSet rs = p.executeQuery();
 
@@ -224,7 +221,7 @@ public class API implements APIProvider {
      * They require a little bit more thought than the level 1 API though.
      */
 
-    // To Jamie [FINISHED, tested]
+    // Implemented by Jamie
     @Override
     public Result<PostView> getLatestPost(long topicId) {
         final String latestPostSTMT =
@@ -257,7 +254,7 @@ public class API implements APIProvider {
         }
     }
 
-    //TO ALEX - DONE [fixed liberally by Jamie (sorry)] - accept empty forum now 
+    // Implemented by Alex
     @Override
     public Result<List<ForumSummaryView>> getForums() {
         List<ForumSummaryView> ll = new ArrayList<>();
@@ -266,7 +263,7 @@ public class API implements APIProvider {
                         "LEFT JOIN Topic ON Topic.ForumId = Forum.id " +
                         "LEFT JOIN Post ON Post.TopicId = Topic.id " +
                         "GROUP BY Forum.id " +
-                        "ORDER BY Forum.title ASC, `date` DESC, Post.id DESC;";
+                        "ORDER BY Forum.title COLLATE NOCASE ASC, `date` DESC, Post.id DESC;";
 
         try (PreparedStatement p = c.prepareStatement(STMT)) {
             ResultSet rs = p.executeQuery();
@@ -283,21 +280,20 @@ public class API implements APIProvider {
                     ));
                 }
             }
-//            return Result.success(ll);
         } catch (SQLException e) {
-            e.printStackTrace(); // TODO: should we take any action in the event of exceptions being caught?
+            e.printStackTrace();
 //            return Result.fatal(e.getMessage());
         }
         return Result.success(ll);
     }
 
-    // TO Phan
+    // Implemented by Phan
     @Override
     public Result createForum(String title) {
         final String selectSTMT = "SELECT title FROM Forum WHERE title = ?;";
         final String insertSTMT = "INSERT INTO Forum (title) VALUES (?);";
 
-        if (title.isEmpty()) return Result.failure("Title provided must not be empty/null.");
+        if (title.isEmpty() || title== null) return Result.failure("Title provided must not be empty/null.");
 
         try (PreparedStatement p = c.prepareStatement(selectSTMT);
              PreparedStatement p1 = c.prepareStatement(insertSTMT)) {
@@ -322,7 +318,7 @@ public class API implements APIProvider {
     }
 
 
-    //TO ALEX - DONE [closed second preparedStatement and - Jamie; tested]
+    //Implemented by ALEX
     @Override
     public Result createPost(long topicId, String username, String text) {
         final String insertSTMT = "INSERT INTO Post (`date`, `text`, PersonId, TopicId) VALUES (?, ?, ?, ?);";
@@ -352,13 +348,13 @@ public class API implements APIProvider {
         return Result.success();
     }
 
-    // to Jamie [FINISHED, tested]
+    // Implemented by Jamie
     @Override
     public Result addNewPerson(String name, String username, String studentId) {
         final String STMT = "INSERT INTO Person (username, name, studentId) VALUES (?, ?, ?)";
         if (name.isEmpty()) return Result.failure("name cannot have empty text nor be null.");
         if (username.isEmpty()) return Result.failure("username cannot have empty text nor be null.");
-        if (studentId.isEmpty()) return Result.failure("studentId cannot have empty text nor be null.");
+        if (studentId.isEmpty()) return Result.failure("studentId cannot have empty text.");
 
         try (PreparedStatement p = c.prepareStatement(STMT)) {
             p.setString(1, username);
@@ -378,25 +374,31 @@ public class API implements APIProvider {
 
         return Result.success();
     }
-
-
-    // TO Phan
+    
+    
+    // Implemented by Phan
     @Override
     public Result<ForumView> getForum(long id) {
-        final String STMT = "SELECT Topic.id AS topicId, Topic.title AS topicTitle "
-                + "FROM Forum INNER JOIN Topic ON Forum.id = Topic.ForumId "
-                + "WHERE forumId = ?;";
+        final String STMT = "SELECT Forum.title AS forumTitle, Topic.id AS topicId, Topic.title AS topicTitle"
+                + " FROM Forum LEFT JOIN Topic ON Forum.id = Topic.ForumId "
+                + " WHERE forum.id = ?;";
         List<SimpleTopicSummaryView> topics = new ArrayList<>();
+        String fT = null;
         try (PreparedStatement p = c.prepareStatement(STMT)) {
-            String forumTitle = vt.validateForumId(id);
-            if (forumTitle == null) return Result.failure("Forum id did not exist, or forum has no topics under it.");
-
-            p.setLong(1, id);
+            p.setLong(1, (int) id);
             ResultSet rs = p.executeQuery();
-
-            while (rs.next()) topics.add(new SimpleTopicSummaryView(rs.getLong("topicId"), id, rs.getString("topicTitle")));
-
-            return Result.success(new ForumView(id, forumTitle, topics));
+            
+            if (!rs.isBeforeFirst() ) return Result.failure("Forum id did not exist");
+            
+            while (rs.next()) {
+                fT = rs.getString("forumTitle");
+                String tt = rs.getString("topicTitle");
+                if (tt == null) { //if there is no topics
+                    return Result.success(new ForumView(id, fT, topics));
+                }
+                topics.add(new SimpleTopicSummaryView(rs.getLong("topicId"), id, tt));
+            }
+            return Result.success(new ForumView(id, fT, topics));
         } catch (SQLException e) {
             return Result.fatal(e.getMessage());
         }
@@ -413,7 +415,7 @@ public class API implements APIProvider {
 
 
 
-    // To Jamie [FINISHED; tested]
+    // Implemented by Jamie [FINISHED; tested]
     @Override
     public Result<TopicView> getTopic(long topicId, int page) {
         if (page < 0) return Result.failure("A negative number of pages worth of topics were requested.");

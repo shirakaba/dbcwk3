@@ -599,6 +599,10 @@ public class API implements APIProvider {
     
     //Phan
     @Override
+    private Result getTimeCreatedTopic () {
+        return result.failure ("not written yet");
+    }
+    
     public Result<List<AdvancedForumSummaryView>> getAdvancedForums() {
         final String STMT = "SELECT Forum.id AS fId, Forum.title AS fTitle, Topic.id AS tId, Topic.title AS tTitle FROM Forum" +
                             "COUNT(Post.id) AS count, Post.`date` AS created, Topic.`date` AS lastTime" +
@@ -607,8 +611,8 @@ public class API implements APIProvider {
                             "LEFT JOIN Post ON Post.TopicId = Topic.id" +
                             "LEFT JOIN Person ON Person.id = Post.PersonId" +
                             "GROUP BY fId" +
-                            "ORDER BY fTitle COLLATE NOCASE ASC, `date` DESC, Post.id DESC;" +
-        
+                            "ORDER BY fTitle COLLATE NOCASE ASC, `date` DESC, Post.id DESC" +
+                            "UNION"
         
                             "SELECT `date` AS lastTime, username, text, Forum.id AS forumId, count(*) AS postNumber FROM Topic " + //get latest post query
                             "INNER JOIN Post ON Topic.id = Post.TopicId " +

@@ -379,12 +379,7 @@ public class API implements APIProvider {
         return Result.success();
     }
 
-    /*
-     * Corner case: needs to 'meet the specification' if one uses getForum on a forum that has no topics.
-     * Get the detailed view of a single forum.
-     * @param id - the id of the forum to get.
-     * @return A view of this forum if it exists, otherwise failure.
-     */
+
     // TO Phan
     @Override
     public Result<ForumView> getForum(long id) {
@@ -725,8 +720,12 @@ public class API implements APIProvider {
         }
     }
 
-    // it is not the responsibility of sub-methods to catch exceptions. These are all caught at the highest level.
-    //expects prior validation of username :)
+    /**
+     * Gets the TopicSummaryView for a given username. Expects prior validation of the username.
+     * @param username - the username to search for Topics interacted with by.
+     * @return - a list of all the TopicSummaryViews which a Person has interacted with.
+     * @throws SQLException
+     */
     private ArrayList<TopicSummaryView> getTopicSummaryView(String username) throws SQLException{
         ArrayList<TopicSummaryView> list = new ArrayList<>();
         final String STMT = "SELECT Topic.Id AS topicId, Forum.Id AS forumId, " +
@@ -751,10 +750,10 @@ public class API implements APIProvider {
                 int topicPostCount = countRowsOfTopicTable(currentTopicId, CountRowsOfTableMode.POSTS);
 
                 ExtremePostView latestPostDatePerson = getExtremeDatePoster(currentTopicId, getExtremeDatePosterMode.NEWEST);
-                System.out.println(String.format("latest post date is %d", latestPostDatePerson.getDate()));
+//                System.out.println(String.format("latest post date is %d", latestPostDatePerson.getDate()));
                 if(latestPostDatePerson == null) return null;
                 ExtremePostView firstPostDatePerson = getExtremeDatePoster(currentTopicId, getExtremeDatePosterMode.CREATION);
-                System.out.println(String.format("first post date is %d", firstPostDatePerson.getDate()));
+//                System.out.println(String.format("first post date is %d", firstPostDatePerson.getDate()));
                 if(firstPostDatePerson == null) return null;
 
                 list.add(new TopicSummaryView(currentTopicId,

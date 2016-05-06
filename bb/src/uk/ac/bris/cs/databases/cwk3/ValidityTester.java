@@ -31,18 +31,19 @@ public class ValidityTester {
      * if the index > the total number => the post does not exist
      */
     boolean validatePost (int post, long topicId) throws SQLException {
-        final String STMT =  "SELECT count(Post.id) AS totalPost FROM Post LEFT JOIN Topic ON Post.TopicId = Topic.id WHERE Topic.id = ?;";
-        int count;
-
-        try (PreparedStatement p = c.prepareStatement(STMT)) {
-            p.setLong(1, topicId);
-            ResultSet rs = p.executeQuery();
-            if (rs.next()) {
-                count = rs.getInt("totalPost");
-                return post <= count;
-            }
-        }
-        return false; //TODO: assess this
+        throw new UnsupportedOperationException("not implemented yet.");
+//        final String STMT =  "SELECT count(Post.id) AS totalPost FROM Post LEFT JOIN Topic ON Post.TopicId = Topic.id WHERE Topic.id = ?;";
+//        int count;
+//
+//        try (PreparedStatement p = c.prepareStatement(STMT)) {
+//            p.setLong(1, topicId);
+//            ResultSet rs = p.executeQuery();
+//            if (rs.next()) {
+//                count = rs.getInt("totalPost");
+//                return post <= count;
+//            }
+//        }
+//        return false; //TODO: assess this
     }
 
     /**

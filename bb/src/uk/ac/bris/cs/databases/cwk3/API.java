@@ -18,9 +18,11 @@ import uk.ac.bris.cs.databases.api.*;
 public class API implements APIProvider {
     private final static int MS_TO_SECONDS = 1000;
     private final Connection c;
+    private final ValidityTester vt;
 
     public API(Connection c) {
         this.c = c;
+        this.vt = new ValidityTester(c);
     }
 
     /* implemented by Alex & Phan [tested] */
@@ -45,24 +47,7 @@ public class API implements APIProvider {
         return Result.success(map); // TODO: ask whether we return the map even if it's empty, and what do when failing.
     }
 
-    /**
-     * Checks whether username is in the Person table.
-     *
-     * @param username - the username to check for the existence of in the Person table.
-     * @return the corresponding Person.id if the username is registered. Otherwise, null.
-     */
-    private Long validateUsername(String username) throws SQLException {
-        final String getUsername = "SELECT id, username FROM Person WHERE username = ?;";
 
-        try (PreparedStatement p = c.prepareStatement(getUsername)) {
-            p.setString(1, username);
-
-            ResultSet rs = p.executeQuery();
-            if (!rs.next()) return null; // username doesn't exist
-
-            return rs.getLong("id");
-        }
-    }
 
     // implemented by Alex [tested. Validation added by Jamie.]
     @Override
@@ -72,7 +57,7 @@ public class API implements APIProvider {
         if (username.equals("")) return Result.failure("Username was empty or null.");
 
         try (PreparedStatement p = c.prepareStatement(STMT)) {
-            if (validateUsername(username) == null) return Result.failure("Username did not exist.");
+            if (vt.validateUsername(username) == null) return Result.failure("Username did not exist.");
 
             p.setString(1, username);
 
@@ -114,7 +99,7 @@ public class API implements APIProvider {
         int posts = 0;
 
         try {
-            if(validateTopicId(topicId) == null) return Result.failure("topic didn't exist.");
+            if(vt.validateTopicId(topicId) == null) return Result.failure("topic didn't exist.");
             posts = countRowsOfTopicTable(topicId, CountRowsOfTableMode.POSTS);
         } catch (SQLException e) {
 //            return Result.failure(e.getMessage()); // TODO: need any exception handling here?
@@ -123,24 +108,6 @@ public class API implements APIProvider {
     }
 
 
-    /**
-     * Checks whether topicId is in the Topic table.
-     *
-     * @param topicId - the id to check for existence of in the Topic table.
-     * @return the corresponding ForumId if the topicId is registered. Otherwise, null.
-     */
-    private Long validateTopicId(long topicId) throws SQLException {
-        final String getTopicId = "SELECT id, forumId FROM Topic WHERE id = ?;";
-
-        try (PreparedStatement p = c.prepareStatement(getTopicId)) {
-            p.setLong(1, topicId);
-
-            ResultSet rs = p.executeQuery();
-            if (!rs.next()) return null; // topicId doesn't exist
-
-            return rs.getLong("ForumId");
-        }
-    }
 
     // to Jamie [FINISHED, tested]
     @Override
@@ -154,7 +121,7 @@ public class API implements APIProvider {
                         "ORDER BY name ASC;";
 
         try (PreparedStatement p = c.prepareStatement(STMT)) {
-            if (validateTopicId(topicId) == null) return Result.failure("topicId did not exist.");
+            if (vt.validateTopicId(topicId) == null) return Result.failure("topicId did not exist.");
 
             p.setLong(1, topicId);
             ResultSet rs = p.executeQuery();
@@ -187,7 +154,7 @@ public class API implements APIProvider {
                         "WHERE TopicId = ? ORDER BY `date` ASC;";
 
         try (PreparedStatement p = c.prepareStatement(STMT)) {
-            if (validateTopicId(topicId) == null) return Result.failure("topicId did not exist.");
+            if (vt.validateTopicId(topicId) == null) return Result.failure("topicId did not exist.");
 
             p.setString(1, String.valueOf(topicId));
             ResultSet rs = p.executeQuery();
@@ -221,6 +188,7 @@ public class API implements APIProvider {
         POSTS
     }
 
+    // apparently requires validation of topicId.
     /**
      * Counts the number of entries (rows) in a table detailing the Posts Or Likes for a  given Topic.
      *
@@ -229,14 +197,24 @@ public class API implements APIProvider {
      * @return the counted number of Posts/Likes.. Otherwise, null.
      */
     private int countRowsOfTopicTable(long topicId, CountRowsOfTableMode mode) throws SQLException {
-        final String whichTable = mode.equals(CountRowsOfTableMode.POSTS) ? "Post" : "LikedTopic";
+        final String whichTable;
 
-        final String getTopicId = String.format("SELECT count(*) AS count FROM %s WHERE TopicId = ?;", whichTable);
+        switch (mode) {
+            case LIKES:
+                whichTable = "SELECT count(*) AS count FROM Topic JOIN LikedTopic ON Topic.id = LikedTopic.TopicId WHERE Topic.id = ?;";
+                break;
+            case POSTS:
+                whichTable = "SELECT count(*) AS count FROM Topic JOIN Post ON Post.TopicId = Topic.id WHERE Topic.id = ?;";
+                break;
+            default:
+                throw new UnsupportedOperationException("An unimplemented branch of the countRowsOfTable method was used.");
+        }
 
-        try (PreparedStatement p = c.prepareStatement(getTopicId)) {
+        try (PreparedStatement p = c.prepareStatement(whichTable)) {
             p.setLong(1, topicId);
 
             ResultSet rs = p.executeQuery();
+
             return rs.getInt("count");
         }
     }
@@ -263,7 +241,7 @@ public class API implements APIProvider {
 
         try (PreparedStatement latestPostP = c.prepareStatement(latestPostSTMT);
              PreparedStatement likesP = c.prepareStatement(likesSTMT)) {
-            if (validateTopicId(topicId) == null) return Result.failure("topicId did not exist.");
+            if (vt.validateTopicId(topicId) == null) return Result.failure("topicId did not exist.");
 
             latestPostP.setLong(1, topicId);
             likesP.setLong(1, topicId);
@@ -278,39 +256,6 @@ public class API implements APIProvider {
             return Result.fatal(e.getMessage());
         }
     }
-
-//    //TO ALEX - DONE [note: this had looping SQL queries, non-closing preparedStatements and isn't ordered by title]
-//    @Override
-//    public Result<List<ForumSummaryView>> getForums() {
-//        final String STMT = "SELECT * FROM Forum;";
-//        List<ForumSummaryView> ll = new ArrayList<>();
-//        SimpleTopicSummaryView stsv;
-//
-//        try (PreparedStatement p = c.prepareStatement(STMT)) {
-//            ResultSet rs = p.executeQuery();
-//            String latestTopicIdSTMT;
-//            while (rs.next()) {
-//                long currForumId = rs.getInt(1);
-//                latestTopicIdSTMT = "SELECT Topic.id, Topic.title From Topic" +
-//                        " JOIN Post ON Post.TopicId = Topic.id " +
-//                        " WHERE ForumId = " + currForumId + " ORDER BY date LIMIT 1;";
-//
-//                PreparedStatement p1 = c.prepareStatement(latestTopicIdSTMT);
-//                ResultSet rs1 = p1.executeQuery();
-//                stsv = new SimpleTopicSummaryView(rs1.getLong(1), currForumId, rs1.getString("title"));
-//		/*System.out.println(rs.getLong(1) + " " + rs.getString("title") + " " + stsv.getTitle());*/
-//
-//                ForumSummaryView fsv = new ForumSummaryView(rs.getLong(1),
-//                        rs.getString("title"),
-//                        stsv);
-//                ll.add(fsv);
-//            }
-//            return Result.success(ll);
-//        } catch (SQLException e) {
-//            e.printStackTrace();
-//            return Result.fatal(e.getMessage());
-//        }
-//    }
 
     //TO ALEX - DONE [fixed liberally by Jamie (sorry)] - accept empty forum now 
     @Override
@@ -385,38 +330,6 @@ public class API implements APIProvider {
         }
     }
 
-//
-//    //TO ALEX - DONE
-//    @Override
-//    public Result createPost(long topicId, String username, String text) {
-//
-//        long dateInSecs = new Date().getTime() / MS_TO_SECONDS;
-//
-//        final String getPersonIdSTMT = "SELECT id FROM Person WHERE username = ?;";
-//        long personId;
-//        try (PreparedStatement p = c.prepareStatement(getPersonIdSTMT)) {
-//            p.setString(1, username);
-//            ResultSet rs = p.executeQuery();
-//            personId = rs.getLong(1);
-//
-//
-//            final String STMT = "INSERT INTO Post (date,text,PersonId,TopicId) VALUES (?, ?, ?, ?);";
-//
-//            PreparedStatement p1 = c.prepareStatement(STMT);
-//
-//            p1.setLong(1, dateInSecs);
-//            p1.setString(2, text);
-//            p1.setLong(3, personId);
-//            p1.setLong(4, topicId);
-//
-//            p1.execute();
-//            c.commit();
-//        } catch (SQLException e) {
-//            return Result.fatal(e.getMessage());
-//        }
-//        return Result.success();
-//    }
-
 
     //TO ALEX - DONE [closed second preparedStatement and - Jamie; tested]
     @Override
@@ -425,9 +338,9 @@ public class API implements APIProvider {
         if (text.equals("")) return Result.failure("Posts cannot have empty text.");
 
         try (PreparedStatement p1 = c.prepareStatement(insertSTMT)) {
-            Long personId = validateUsername(username);
+            Long personId = vt.validateUsername(username);
             if (personId == null) return Result.failure("Person id did not exist.");
-            if (validateTopicId(topicId) == null) return Result.failure("Topic id did not exist.");
+            if (vt.validateTopicId(topicId) == null) return Result.failure("Topic id did not exist.");
 
             long dateInSecs = new Date().getTime() / MS_TO_SECONDS;
             p1.setLong(1, dateInSecs);
@@ -489,7 +402,7 @@ public class API implements APIProvider {
                 + "WHERE forumId = ?;";
         List<SimpleTopicSummaryView> topics = new ArrayList<>();
         try (PreparedStatement p = c.prepareStatement(STMT)) {
-            String forumTitle = validateForumId(id);
+            String forumTitle = vt.validateForumId(id);
             if (forumTitle == null) return Result.failure("Forum id did not exist, or forum has no topics under it (illegal).");
 
             p.setLong(1, (int) id);
@@ -513,27 +426,6 @@ public class API implements APIProvider {
     // If there's no unique constraint, will have to check every single entry in the table (TABLE SCAN: once through the whole table).
 
 
-    /**
-     * Checks whether sufficient Posts exist at the page offset to display a page worth of Posts.
-     *
-     * @param page    - the page of Posts to navigate to.
-     * @param topicId - TopicId to check for the existence of in table.
-     * @return false if too few Posts. True if enough Posts, or if page specified is zero (supporting any number of Posts).
-     */
-    private boolean validatePostCount(long topicId, int page) throws SQLException {
-        if (page == 0) return true;
-
-        final String STMT = "SELECT count(*) AS postCnt FROM Post JOIN Topic ON Post.TopicId = Topic.id WHERE TopicId = ?";
-
-        try (PreparedStatement p = c.prepareStatement(STMT)) {
-            p.setLong(1, topicId);
-            ResultSet rs = p.executeQuery();
-            long postCnt = rs.getLong("postCnt");
-            if (postCnt < 10 * page + 1) return false;
-
-            return true;
-        }
-    }
 
     // To Jamie [FINISHED; tested]
     @Override
@@ -554,12 +446,12 @@ public class API implements APIProvider {
                         "ORDER BY `date` ASC, Post.id ASC %s;", limiter);
 
         try (PreparedStatement p = c.prepareStatement(ascendingPostsOfTopicSTMT)) {
-            if (validateTopicId(topicId) == null) return Result.failure("Topic id did not exist.");
+            if (vt.validateTopicId(topicId) == null) return Result.failure("Topic id did not exist.");
             p.setLong(1, topicId);
 
             // TODO: populate database with posts to test this.
             // TODO: Ask guidance on printing this error (the line of code is hit, but doesn't print).
-            if (!validatePostCount(topicId, page))
+            if (!vt.validatePostCount(topicId, page))
                 return Result.failure("Too few posts existed to span to requested page");
 
             ResultSet rs = p.executeQuery();
@@ -643,9 +535,9 @@ public class API implements APIProvider {
         else STMT = "DELETE FROM LikedTopic WHERE TopicId = ? AND PersonId = ?;";
 
         try (PreparedStatement p1 = c.prepareStatement(STMT)) {
-            Long personId = validateUsername(username);
+            Long personId = vt.validateUsername(username);
             if (personId == null) return Result.failure("username did not exist.");
-            if (validateTopicId(topicId) == null) return Result.failure("topicId did not exist.");
+            if (vt.validateTopicId(topicId) == null) return Result.failure("topicId did not exist.");
             if (!likeOrFavouriteNeedsChanging(topicId, personId, like, LikeOrFavourite.LIKE)) return Result.success();
 
             p1.setLong(1, topicId);
@@ -666,25 +558,18 @@ public class API implements APIProvider {
 
     }
 
-    /*
-     * Set or unset a topic as favourite. Same semantics as likeTopic.
-     * @param username - the person setting the favourite topic (must exist).
-     * @param topicId - the topic to set as favourite (must exist).
-     * @param fav - true to set, false to unset as favourite.
-     * @return success (even if it was a no-op), failure if the person or topic
-     * does not exist and fatal in case of db errors.
-     */
+
     // Alex
     @Override
     public Result favouriteTopic(String username, long topicId, boolean favourite) {
        final String STMT;
-        if (favourite) STMT = "INSERT INTO FavouriteTopic (FavouriteId, PersonId) VALUES (?, ?);";
-        else STMT = "DELETE FROM FavouriteTopic WHERE FavouriteId = ? AND PersonId = ?;";
+        if (favourite) STMT = "INSERT INTO FavouritedTopic (TopicId, PersonId) VALUES (?, ?);";
+        else STMT = "DELETE FROM FavouritedTopic WHERE TopicId = ? AND PersonId = ?;";
 
         try (PreparedStatement p1 = c.prepareStatement(STMT)) {
-            Long personId = validateUsername(username);
+            Long personId = vt.validateUsername(username);
             if (personId == null) return Result.failure("username did not exist.");
-            if (validateTopicId(topicId) == null) return Result.failure("topicId did not exist.");
+            if (vt.validateTopicId(topicId) == null) return Result.failure("topicId did not exist.");
             if (!likeOrFavouriteNeedsChanging(topicId, personId, favourite, LikeOrFavourite.FAVOURITE)) return Result.success();
 
             p1.setLong(1, topicId);
@@ -706,25 +591,6 @@ public class API implements APIProvider {
     }
 
 
-    /**
-     * Checks whether forumId has been registered in the Forum table, and has at least one Topic associated with it.
-     *
-     * @param forumId - forumId to check for the existence of in table.
-     * @return Returns corresponding title of forumId. Otherwise, returns null.
-     */
-    private String validateForumId(long forumId) throws SQLException {
-        final String checkForumId = "SELECT Forum.id, Forum.title FROM " +
-                "Forum JOIN Topic ON Forum.id = Topic.ForumId WHERE Forum.id = ? LIMIT 1;";
-
-        try (PreparedStatement p = c.prepareStatement(checkForumId)) {
-            p.setLong(1, forumId);
-
-            ResultSet rs = p.executeQuery();
-            if (!rs.next()) return null; // forum id doesn't exist, or forum has no topic under it.
-
-            return rs.getString("title");
-        }
-    }
 
     /*
      * Level 3 - more complex queries. Leave these until last.
@@ -743,9 +609,9 @@ public class API implements APIProvider {
              PreparedStatement p3 = c.prepareStatement(getTopicIdSTMT);
              PreparedStatement p1 = c.prepareStatement(STMT)) {
 
-            Long personId = validateUsername(username);
+            Long personId = vt.validateUsername(username);
             if (personId == null) return Result.failure("username did not exist.");
-            if (validateForumId(forumId) == null)
+            if (vt.validateForumId(forumId) == null)
                 return Result.failure("Forum id did not exist, or forum has no topics under it (illegal)."); // TODO: ask about failure messages not printing.
 
             p2.setString(1, title);
@@ -792,6 +658,7 @@ public class API implements APIProvider {
   /*  public AdvancedPersonView(String name, String username, String studentId,
             int topicLikes, int postLikes, List<TopicSummaryView> favourites)*/
 
+    // TODO: test this
     @Override
     public Result<AdvancedPersonView> getAdvancedPersonView(String username) {
         final String STMT = "SELECT name, username, studentId FROM Person WHERE username = ?;";
@@ -799,33 +666,67 @@ public class API implements APIProvider {
         if (username.equals("")) return Result.failure("Username was empty or null.");
 
         try (PreparedStatement p = c.prepareStatement(STMT)) {
-            if (validateUsername(username) == null) return Result.failure("Username did not exist.");
+            if (vt.validateUsername(username) == null) return Result.failure("Username did not exist.");
 
             p.setString(1, username);
 
             ResultSet rs = p.executeQuery();
 
-         
-            
-            
             return Result.success(new AdvancedPersonView(
                     rs.getString("name"),
                     rs.getString("username"),
                     rs.getString("studentId"),
-		            getPersonalLikedPostCount(username),
-		            getPersonalFavouritedTopicCount(username),
+                    countRowsOfTable(username, CountRowsOfPersonMode.PERSON_LIKES),
+                    countRowsOfTable(username, CountRowsOfPersonMode.PERSON_FAVOURITES),
 		            getTopicSummaryView(username)));
         } catch (SQLException e) {
-            e.printStackTrace();
-            return Result.fatal(e.getMessage());
-        } catch (Exception e){
             e.printStackTrace();
             return Result.fatal(e.getMessage());
         }
     }
 
+    /**
+     * Switches the mode of countRowsOfTable() to counting Likes (PERSON_LIKES) or Favourites (PERSON_FAVOURITES).
+     */
+    private enum CountRowsOfPersonMode {
+        PERSON_LIKES,
+        PERSON_FAVOURITES
+    }
+
+    /**
+     * Counts the number of entries (rows) in a table detailing the Posts Or Likes for a  given Topic.
+     * Expects prior validation of username.
+     *
+     * @param username - the username to count Favourites/Likes for.
+     * @param mode - counts Posts if CountRowsOfPersonMode.TOPIC_POSTS; otherwise, counts TOPIC_LIKES.
+     * @return the counted number of Posts/Likes.. Otherwise, null.
+     */
+    private int countRowsOfTable(String username, CountRowsOfPersonMode mode) throws SQLException {
+        final String getTopicId;
+
+        switch (mode) {
+            case PERSON_LIKES:
+                getTopicId = "SELECT count(*) AS count FROM Person JOIN LikedPost ON id = PersonId WHERE username = ?;";
+                break;
+            case PERSON_FAVOURITES:
+                getTopicId = "SELECT count(*) AS count FROM Person JOIN FavouritedTopic ON id = PersonId WHERE username = ?;";
+                break;
+            default:
+                throw new UnsupportedOperationException("An unimplemented branch of the countRowsOfTable method was used.");
+        }
+
+        try (PreparedStatement p = c.prepareStatement(getTopicId)) {
+            p.setString(1, username);
+
+            ResultSet rs = p.executeQuery();
+            return rs.getInt("count");
+        }
+    }
+
+    // it is not the responsibility of sub-methods to catch exceptions. These are all caught at the highest level.
     //expects prior validation of username :)
-    private ArrayList<TopicSummaryView> getTopicSummaryView(String username) throws Exception{
+    private ArrayList<TopicSummaryView> getTopicSummaryView(String username) throws SQLException{
+        ArrayList<TopicSummaryView> list = new ArrayList<>();
         final String STMT = "SELECT Topic.Id AS topicId, Forum.Id AS forumId, " +
                             "Topic.title AS title, Person.name AS name, Person.username AS username " +
                             "FROM Person JOIN FavouritedTopic ON Person.id = FavouritedTopic.PersonId " +
@@ -839,14 +740,12 @@ public class API implements APIProvider {
             ResultSet rs = p.executeQuery();
             
             //check if result set is empty
-            if (!rs.isBeforeFirst() ) {return new ArrayList<TopicSummaryView>();} 
+            if (!rs.isBeforeFirst() ) return new ArrayList<>();
 
-            int topicLikedCount = getTopicLikedCount(rs.getLong("topicId"));
-            int topicPostCount = getTopicPostCount(rs.getLong("topicId"));
-            String[] latestPostDateName = getLatestPostDateName(rs.getLong("topicId"));
-            String[] topicCreatedDatePerson = getTopicCreatedDatePerson(rs.getLong("topicId"));
-
-            ArrayList<TopicSummaryView> list = new ArrayList<TopicSummaryView>();
+            int topicLikedCount = countRowsOfTopicTable(rs.getLong("topicId"), CountRowsOfTableMode.LIKES);
+            int topicPostCount = countRowsOfTopicTable(rs.getLong("topicId"), CountRowsOfTableMode.POSTS);
+            String[] latestPostDateName = getExtremeDatePoster(rs.getLong("topicId"), getExtremeDatePosterMode.NEWEST);
+            String[] topicCreatedDatePerson = getExtremeDatePoster(rs.getLong("topicId"), getExtremeDatePosterMode.CREATION);
    
             while (rs.next()) {
                 list.add(new TopicSummaryView(rs.getLong("topicId"),
@@ -862,129 +761,83 @@ public class API implements APIProvider {
             }
 
             return list;
-
-        } catch (SQLException e) {
-            System.out.println("here1");
-            e.printStackTrace();
-            throw e;
-        } 
+        }
     }
 
-    private String[] getTopicCreatedDatePerson(long topicId) throws Exception{
-        if (validateTopicId(topicId) == null) throw new Exception("TopicId did not exist.");
 
-        final String STMT = "SELECT date, Person.name AS name, Person.username AS username FROM Topic " +
-                            "JOIN Post ON Post.TopicId = Topic.id " +
-                            "JOIN Person ON PersonId = Person.id " +
-                            "WHERE Topic.id = ? " +
-                            "ORDER BY `date` ASC LIMIT 1;";
-        try(PreparedStatement p = c.prepareStatement(STMT)){
+    /**
+     * Switches the mode of getExtremeDatePoster() to sorting by date ASC (CREATION) or DESC (NEWEST).
+     */
+    private enum getExtremeDatePosterMode {
+        CREATION,
+        NEWEST
+    }
 
+    // TODO: requires topic to be validated beforehand
+    // TODO: protect against failure when returning.
+    // we've been asked not to throw unusual Exceptions, and that line stops it from compiling anyway
+    /**
+     * Requires a valid topicId.
+     * Gets the date, name, and username of which Person made the earliest or last Post in the specified Topic.
+     * @param topicId - the Topic id to search for. Must be valid.
+     * @param mode - CREATION: date of first Post in Topic (made at Topic creation time).  NEWEST: date of newest Post in Topic.
+     * @return returns a String array. In slot 0, the date. In slot 1, the name. In slot 2, the username.
+     *         Uncharacterised behaviour if failure.
+     */
+    private String[] getExtremeDatePoster(long topicId, getExtremeDatePosterMode mode) throws SQLException {
+//        if (validateTopicId(topicId) == null) throw new Exception("TopicId did not exist.");
+
+        final String sort;
+
+        switch(mode){
+            case CREATION:
+                sort = "ASC";
+                break;
+            case NEWEST:
+                sort = "DESC";
+                break;
+            default:
+                throw new UnsupportedOperationException("unimplemented branch of getExtremeDatePoster reached");
+        }
+
+        final String STMT = String.format("SELECT `date`, Person.name AS name, Person.username AS username FROM Topic " +
+                "JOIN Post ON Post.TopicId = Topic.id " +
+                "JOIN Person ON PersonId = Person.id " +
+                "WHERE Topic.id = ?" +
+                "ORDER BY `date` %s LIMIT 1;", sort);
+
+
+        try(PreparedStatement p = c.prepareStatement(STMT)) {
             p.setLong(1, topicId);
 
             ResultSet rs = p.executeQuery();
 
             return new String[]{String.valueOf(rs.getInt(1)), rs.getString("name"), rs.getString("username")};
-
-        } catch (SQLException e) {
-            return null;
-        } 
-    }    
-
-    private String[] getLatestPostDateName(long topicId) throws Exception{
-        if (validateTopicId(topicId) == null) throw new Exception("TopicId did not exist.");
-
-        final String STMT = "SELECT date, Person.name AS name FROM Topic " +
-                            "JOIN Post ON Post.TopicId = Topic.id " +
-                            "JOIN Person ON PersonId = Person.id " +
-                            "WHERE Topic.id = ?" +
-                            "ORDER BY `date` DESC LIMIT 1;";
-        try(PreparedStatement p = c.prepareStatement(STMT)){
-
-            p.setLong(1, topicId);
-
-            ResultSet rs = p.executeQuery();
-
-            return new String[]{String.valueOf(rs.getInt(1)), rs.getString("name")};
-        } catch (SQLException e) {
-            return null;
-        } 
-    }
-
-    private int getTopicLikedCount(long topicId) throws Exception{
-        if (validateTopicId(topicId) == null) throw new Exception("TopicId did not exist.");
-        final String STMT = "SELECT COUNT(*) FROM LikedTopic JOIN Topic ON TopicId = Topic.id WHERE Topic.id = ?;";
-        try(PreparedStatement p = c.prepareStatement(STMT)){
-
-            p.setLong(1, topicId);
-
-            ResultSet rs = p.executeQuery();
-            return rs.getInt(1);
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return -1;
-        }     
-    }
-
-    private int getTopicPostCount(long topicId) throws Exception{
-        if (validateTopicId(topicId) == null) throw new Exception("TopicId did not exist.");
-        final String STMT = "SELECT COUNT(*) FROM Topic JOIN Post ON TopicId = Topic.id WHERE Topic.id = ?;";
-        try(PreparedStatement p = c.prepareStatement(STMT)){
-
-            p.setLong(1, topicId);
-
-            ResultSet rs = p.executeQuery();
-	        return rs.getInt(1);
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return -1;
         }
-
-        
     }
 
-    //expects prior validation of username :)
-    private int getPersonalLikedPostCount(String username){
-        final String STMT = "SELECT COUNT(*) FROM Person JOIN LikedPost ON id = PersonId WHERE username = ?;";
-        try (PreparedStatement p = c.prepareStatement(STMT)) {
 
-            p.setString(1, username);
-
-            ResultSet rs = p.executeQuery();
-
-            return rs.getInt(1);
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return -1;
-        }       
-    }
-
-    //expects prior validation of username :)
-    private int getPersonalFavouritedTopicCount(String username){
-        final String STMT = "SELECT COUNT(*) FROM Person JOIN FavouritedTopic ON id = PersonId WHERE username = ?;";
-        try (PreparedStatement p = c.prepareStatement(STMT)) {
-
-            p.setString(1, username);
-
-            ResultSet rs = p.executeQuery();
-
-            return rs.getInt(1);
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return -1;
-        }       
-    }
-
-    // TODO: under construction.
+    // not worth doing. Can't figure out how to avoid looped SQL queries.
     @Override
     public Result<AdvancedForumView> getAdvancedForum(long id) {
         throw new UnsupportedOperationException("Not supported yet.");
-//        final String STMT = "SELECT Topic.id AS topicId, Topic.title AS topicTitle "
-//                + "FROM Forum INNER JOIN Topic ON Forum.id = Topic.ForumId "
-//                + "WHERE forumId = ? ORDER BY Topic.title ASC;";
+//        final String STMT =
+//                "SELECT Post.date  FROM Forum  " +
+//                        "JOIN Topic ON Forum.id = Topic.ForumId " +
+//                        "LEFT JOIN Post ON Post.TopicId = Topic.id " +
+//                        "LEFT JOIN LikedTopic ON LikedTopic.TopicId = Topic.id " +
+//                        "" +
+////                "JOIN Topic ON Forum.id = Topic.ForumId " +
+//                "WHERE Topic.id IN  " +
+//                        // list of all latest posted-into Topics in a Forum:
+//                "(SELECT Topic.id " +
+////                        ", count(LikedTopic.TopicId) AS topicLikes, count(Post.TopicId) AS postCnt " +
+//                "FROM Forum " +
+//                "JOIN Topic ON Forum.id = Topic.ForumId " +
+//                "LEFT JOIN Post ON Post.TopicId = Topic.id " +
+//                "LEFT JOIN LikedTopic ON LikedTopic.TopicId = Topic.id " +
+//                "WHERE Topic.ForumId = ? GROUP BY Topic.id " +
+//                "ORDER BY Post.date DESC, Post.id DESC);";
 //        List<TopicSummaryView> topics = new ArrayList<>();
 //        try (PreparedStatement p = c.prepareStatement(STMT)) {
 //            String forumTitle = validateForumId(id);
@@ -994,8 +847,8 @@ public class API implements APIProvider {
 //            ResultSet rs = p.executeQuery();
 //
 //            while (rs.next()) topics.add(new TopicSummaryView(
-//                    rs.getLong("topicId"), id, rs.getString("topicTitle"),
-//                    // int postCount, int created, int lastPostTime, String lastPostName, int likes, String creatorName, String creatorUserName
+//                            rs.getLong("Topic.id"), id, rs.getString("Topic.title"),
+//                            // int postCount, int created, rs.getInt("Post.date"), String lastPostName, rs.getInt("topicLikes"), String creatorName, String creatorUserName
 //                    )
 //            );
 //

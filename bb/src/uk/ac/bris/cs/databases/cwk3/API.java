@@ -746,19 +746,22 @@ public class API implements APIProvider {
                 long currentTopicId = rs.getLong("topicId");
                 int topicLikedCount = countRowsOfTopicTable(currentTopicId, CountRowsOfTableMode.LIKES);
                 int topicPostCount = countRowsOfTopicTable(currentTopicId, CountRowsOfTableMode.POSTS);
-                String[] latestPostDateName = getExtremeDatePoster(currentTopicId, getExtremeDatePosterMode.NEWEST);
-                String[] topicCreatedDatePerson = getExtremeDatePoster(currentTopicId, getExtremeDatePosterMode.CREATION);
+
+                ExtremePostView latestPostDatePerson = getExtremeDatePoster(currentTopicId, getExtremeDatePosterMode.NEWEST);
+                if(latestPostDatePerson == null) return null; // TODO: assess nullness of list by receiver.
+                ExtremePostView firstPostDatePerson = getExtremeDatePoster(currentTopicId, getExtremeDatePosterMode.CREATION);
+                if(firstPostDatePerson == null) return null; // TODO: assess nullness of list by receiver.
 
                 list.add(new TopicSummaryView(currentTopicId,
                                               rs.getLong("forumId"),
                                               rs.getString("title"),
                                               topicPostCount,
-                                              Integer.parseInt(topicCreatedDatePerson[0]),
-                                              Integer.parseInt(latestPostDateName[0]),
-                                              latestPostDateName[0],
+                                              firstPostDatePerson.getDate(), // int created
+                                              latestPostDatePerson.getDate(), // int lastPostTime
+                                              latestPostDatePerson.getName(), // String lastPostName
                                               topicLikedCount,
-                                              topicCreatedDatePerson[1],
-                                              topicCreatedDatePerson[2]));
+                                              firstPostDatePerson.getName(), // String creatorName
+                                              firstPostDatePerson.getUsername())); // String creatorUserName
             }
 
             return list;
@@ -785,7 +788,7 @@ public class API implements APIProvider {
      * @return returns a String array. In slot 0, the date. In slot 1, the name. In slot 2, the username.
      *         Uncharacterised behaviour if failure.
      */
-    private String[] getExtremeDatePoster(long topicId, getExtremeDatePosterMode mode) throws SQLException {
+    private ExtremePostView getExtremeDatePoster(long topicId, getExtremeDatePosterMode mode) throws SQLException {
 //        if (validateTopicId(topicId) == null) throw new Exception("TopicId did not exist.");
 
         final String sort;
@@ -804,7 +807,7 @@ public class API implements APIProvider {
         final String STMT = String.format("SELECT `date`, Person.name AS name, Person.username AS username FROM Topic " +
                 "JOIN Post ON Post.TopicId = Topic.id " +
                 "JOIN Person ON PersonId = Person.id " +
-                "WHERE Topic.id = ?" +
+                "WHERE Topic.id = ? " +
                 "ORDER BY `date` %s LIMIT 1;", sort);
 
 
@@ -813,7 +816,9 @@ public class API implements APIProvider {
 
             ResultSet rs = p.executeQuery();
 
-            return new String[]{String.valueOf(rs.getInt(1)), rs.getString("name"), rs.getString("username")};
+            if(!rs.next()) return null;
+
+            return new ExtremePostView(rs.getInt("date"), rs.getString("name"), rs.getString("username"));
         }
     }
 

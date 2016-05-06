@@ -580,7 +580,6 @@ public class API implements APIProvider {
         }
     }
 
-
     /**
      * returns the topicId using topic title
      *
@@ -597,18 +596,60 @@ public class API implements APIProvider {
             return rs2.getLong(1);
         }
     }
-
+    
+    //Phan
     @Override
+    private Result getTimeCreatedTopic () {
+        return result.failure ("not written yet");
+    }
+    
     public Result<List<AdvancedForumSummaryView>> getAdvancedForums() {
-        /*final String STMT = "SELECT Forum.id, title, topic FROM Forum ORDER BY title ASC;";
-        List<AdvancedForumSummaryView> = new ArrayList<> ();
+        final String STMT = "SELECT Forum.id AS fId, Forum.title AS fTitle, Topic.id AS tId, Topic.title AS tTitle FROM Forum" +
+                            "COUNT(Post.id) AS count, Post.`date` AS created, Topic.`date` AS lastTime" +
+                            "Person.name AS cName, Person.username AS cUserName" +
+                            "FROM Forum LEFT JOIN Topic ON Topic.ForumId = Forum.id" +
+                            "LEFT JOIN Post ON Post.TopicId = Topic.id" +
+                            "LEFT JOIN Person ON Person.id = Post.PersonId" +
+                            "GROUP BY fId" +
+                            "ORDER BY fTitle COLLATE NOCASE ASC, `date` DESC, Post.id DESC" +
+                            "UNION"
+        
+                            "SELECT `date` AS lastTime, username, text, Forum.id AS forumId, count(*) AS postNumber FROM Topic " + //get latest post query
+                            "INNER JOIN Post ON Topic.id = Post.TopicId " +
+                            "INNER JOIN Person ON Person.id = Post.PersonId " +
+                            "INNER JOIN Forum ON Forum.id = Topic.ForumId " +
+                            "WHERE Post.TopicId = ? " +
+                            "ORDER BY `date` DESC, Post.id DESC " + // orders first by date, then by size (newness) of id in case of same-day post
+                            "LIMIT 1;";
+        
+        List<AdvancedForumSummaryView> list= new ArrayList<> ();
         
         try (PreparedStatement p = c.prepareStatement(STMT)) {
-            p.setString(1, id)
-        }*/
-        throw new UnsupportedOperationException("Not supported yet.");
+            ResultSet rs = p.executeQuery();
+            while (rs.next()) {
+                String title = rs.getString("tTitle");
+                if (title == null) {
+                    list.add(new AdvancedForumSummaryView(rs.getLong("fId"), rs.getString("fTitle"), null));
+                } else {
+                    list.add (new AdvancedForumSummaryView(rs.getLong("fId"), rs.getString("fTitle"),
+                                                       new TopicSummaryView(rs.getLong("tId"), rs.getLong("fId"), rs.getString("tTitle"),
+                                                                            rs.getInt("count"), rs.getInt("created"),
+                                                                            rs.getInt("lastTime"), rs.getString("lastName"), rs.getInt("likes"),
+                                                                            rs.getString("cName"), rs.getString("cUserName")
+                                                                            ) ));
+                }
+            }
+            return Result.success (list);
+        } catch (SQLException e) {
+            return Result.fatal(e.getMessage());
+        }
         
     }
+    /*list.add (new AdvancedForumSummaryView(rs.getLong("fId"), rs.getString("fTitle"),
+                                           new TopicSummaryView(rs.getLong("tId"), rs.getLong("fId"), rs.getString("tTitle"), rs.getInt("count"), rs.getInt("created"),
+                                                                rs.getInt("lastTime"), rs.getString("lastName"), rs.getInt("likes"),
+                                                                rs.getString("cName"), rs.getString("cUserName")
+                                                                ) ));*/
 
 	//TO ALEX
   /*  public AdvancedPersonView(String name, String username, String studentId,
@@ -817,8 +858,77 @@ public class API implements APIProvider {
     }
 
     // TODO: this shouldn't be at all hard - just reference likeTopic() and generalise the likeOrFavouriteNeedsChanging() private method.
+    /**
+     * validate if a post exist by checking the post index against the total of post from a topic,
+     * if the index > the total number => the post does not exist
+     */
+    private boolean validatePost (int post, long topicId) {
+        final String STMT =  "SELECT count(Post.id) AS totalPost FROM Post LEFT JOIN Topic ON Post.TopicId = Topic.id WHERE Topic.id = ?;";
+        int count;
+        try (PreparedStatement p = c.prepareStatement(STMT)) {
+            p.setLong(1, topicId);
+            ResultSet rs = p.executeQuery();
+            if (rs.next()) {
+                count = rs.getInt("totalPost");
+                if (post <= count) {
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+        } catch (SQLException e) {
+            return Result.fatal (e.getMessage);
+        }
+    }
     @Override
     public Result likePost(String username, long topicId, int post, boolean like) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        final String STMT;
+        if (validateUsername (username) == null) {
+            return Result.failure ("username does not exist");
+        } else if (validateTopicId(topicId) == null) {
+            return Result.failure ("the topic does not exist");
+        } else if (!validatePost(post, topicId)) {
+            return Result.failure ("the post does not exist");
+        }
+        
+        final String findPerson = "SELECT id AS pId FROM Person WHERE username = ?;";
+        int pId;
+        try (PreparedStatement q = c.prepareStatement(STMT)){
+            q.setString(1, username);
+            ResultSet r = q.executeQuery();
+            if (r.next()) {
+                pId = r.getInt("pId");
+            }
+        }
+        if (like) {
+            String checkLike = "SELECT PostId, PersonId FROM LikedPost WHERE PostId = ?, PersonId = ?;";
+            try (PreparedStatement cL = c.prepareStatement(checkLike)) {
+                ResultSet r_cL;
+                cL.setInt(1, post);
+                cL.setInt(2, pId);
+                cL.executeQuery();
+                if (r_cL.next()!= null) {
+                    return Result.failure ("User already liked the topic");
+                }
+                
+            }
+            STMT = "INSERT INTO LikedPost (PostId, PersonId) VALUES (?, ?);";
+        } else {
+            STMT = "DELETE FROM LikedPost WHERE PostId = ? AND PersonId = ?;";
+        }
+        try (PreparedStatement p = c.prepareStatement(STMT)) {
+            p.setInt(1, post);
+            p.setInt(2, pId);
+            p.execute();
+            c.commit();
+            return Result.success();
+        } catch (SQLException e) {
+            try {
+                c.rollback();
+            } catch (SQLException f) {
+                return Result.fatal (f.getMessage());
+            }
+            return Result.fatal (e.getMessage());
+        }
     }
 }

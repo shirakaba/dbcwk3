@@ -19,6 +19,15 @@ public class ValidityTester {
 
     private final Connection c;
 
+    /**
+     * Used to switch the mode of the likeOrFavouriteNeedsChanging() method.
+     *
+     * */
+    enum LikeOrFavourite {
+        LIKE,
+        FAVOURITE
+    }
+
     ValidityTester(Connection c){
         this.c = c;
     }
@@ -99,6 +108,40 @@ public class ValidityTester {
             ResultSet rs = p.executeQuery();
             long postCnt = rs.getLong("postCnt");
             if (postCnt < 10 * page + 1) return false;
+
+            return true;
+        }
+    }
+
+
+    /**
+     * Checks 1) whether a Topic has already been liked by a given person in the LikedTopic table,
+     * or     2) whether a Topic has already been favourited by a given person in the FavouritedTopic table.
+     *
+     * @param TopicId      - TopicId to check for the existence of in table.
+     * @param PersonId     - PersonId to check for the existence of in table.
+     * @param intendToApply - true if intending to apply like/favourite; false if intending to remove like/favourite.
+     * @param mode - LikeOrFavourite.LIKE for like; LikeOrFavourite.FAVOURITE for favourite.
+     * @return Returns true/false concerning whether an input Person id has already liked an the input Topic id.
+     */
+    boolean likeOrFavouriteNeedsChanging(long TopicId, long PersonId, boolean intendToApply, LikeOrFavourite mode) throws SQLException {
+        boolean topicAlreadyActedUpon = false;
+        final String whichTable = mode.equals(LikeOrFavourite.FAVOURITE) ? "FavouritedTopic" : "LikedTopic";
+        final String STMT = String.format("SELECT TopicId, PersonId FROM %s WHERE TopicId = ? AND PersonId = ?;", whichTable);
+
+        try (PreparedStatement p = c.prepareStatement(STMT)) {
+            p.setLong(1, TopicId);
+            p.setLong(2, PersonId);
+
+            ResultSet rs = p.executeQuery();
+            if (rs.next()) topicAlreadyActedUpon = true;
+
+            if (intendToApply) {
+                if (topicAlreadyActedUpon) return false;
+            }
+            else {
+                if (!topicAlreadyActedUpon) return false;
+            }
 
             return true;
         }

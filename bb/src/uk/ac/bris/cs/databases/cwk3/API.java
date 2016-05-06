@@ -687,7 +687,8 @@ public class API implements APIProvider {
                             "Topic.title AS title, Person.name AS name, Person.username AS username " +
                             "FROM Person JOIN FavouritedTopic ON Person.id = FavouritedTopic.PersonId " +
                             "JOIN Post ON Post.PersonId = Person.id JOIN Topic ON Topic.id = Post.TopicId " +
-                            "JOIN Forum ON Forum.id = ForumId WHERE username = ?;";
+                            "JOIN Forum ON Forum.id = ForumId WHERE username = ?" +
+                            "GROUP BY Topic.id;";
 
         try (PreparedStatement p = c.prepareStatement(STMT)) {
 
@@ -698,13 +699,14 @@ public class API implements APIProvider {
             //check if result set is empty
             if (!rs.isBeforeFirst() ) return new ArrayList<>();
 
-            int topicLikedCount = countRowsOfTopicTable(rs.getLong("topicId"), CountRowsOfTableMode.LIKES);
-            int topicPostCount = countRowsOfTopicTable(rs.getLong("topicId"), CountRowsOfTableMode.POSTS);
-            String[] latestPostDateName = getExtremeDatePoster(rs.getLong("topicId"), getExtremeDatePosterMode.NEWEST);
-            String[] topicCreatedDatePerson = getExtremeDatePoster(rs.getLong("topicId"), getExtremeDatePosterMode.CREATION);
-   
             while (rs.next()) {
-                list.add(new TopicSummaryView(rs.getLong("topicId"),
+                long currentTopicId = rs.getLong("topicId");
+                int topicLikedCount = countRowsOfTopicTable(currentTopicId, CountRowsOfTableMode.LIKES);
+                int topicPostCount = countRowsOfTopicTable(currentTopicId, CountRowsOfTableMode.POSTS);
+                String[] latestPostDateName = getExtremeDatePoster(currentTopicId, getExtremeDatePosterMode.NEWEST);
+                String[] topicCreatedDatePerson = getExtremeDatePoster(currentTopicId, getExtremeDatePosterMode.CREATION);
+
+                list.add(new TopicSummaryView(currentTopicId,
                                               rs.getLong("forumId"),
                                               rs.getString("title"),
                                               topicPostCount,

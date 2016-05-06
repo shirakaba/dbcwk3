@@ -291,35 +291,25 @@ public class API implements APIProvider {
         return Result.success(ll);
     }
 
-    /*
-     * Create a new forum.
-     * @param title - the title of the forum. Must not be null or empty and
-     * no forum with this name must exist yet.
-     * @return success if the forum was created, failure if the title was
-     * null, empty or such a forum already existed; fatal on other errors.
-     */
     // TO Phan
     @Override
     public Result createForum(String title) {
         final String selectSTMT = "SELECT title FROM Forum WHERE title = ?;";
-        try (PreparedStatement p = c.prepareStatement(selectSTMT)) {
+        final String insertSTMT = "INSERT INTO Forum (title) VALUES (?);";
+
+        try (PreparedStatement p = c.prepareStatement(selectSTMT);
+             PreparedStatement p1 = c.prepareStatement(insertSTMT)) {
             p.setString(1, title);
             ResultSet rs = p.executeQuery();
-            if (rs.next()) {
-                return Result.failure ("Title already existed");
-            }
-            else {
-                final String insertSTMT = "INSERT INTO Forum (title) VALUES (?);";
-                if  (title== null || title.isEmpty()) {
-                    return Result.failure ("Null");
-                }
-                try (PreparedStatement p1 = c.prepareStatement(insertSTMT)) {
-                    p1.setString(1, title);
-                    p1.execute();
-                    c.commit();
-                    return Result.success();
-                }
-            }
+
+            if (rs.next()) return Result.failure("Title provided must be unique.");
+            if (title.isEmpty()) return Result.failure("Title provided must not be empty/null.");
+
+            p1.setString(1, title);
+            p1.execute();
+            c.commit();
+
+            return Result.success();
         } catch (SQLException e) {
             try {
                 c.rollback();

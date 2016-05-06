@@ -686,8 +686,8 @@ public class API implements APIProvider {
         final String STMT = "SELECT Topic.Id AS topicId, Forum.Id AS forumId, " +
                             "Topic.title AS title, Person.name AS name, Person.username AS username " +
                             "FROM Person JOIN FavouritedTopic ON Person.id = FavouritedTopic.PersonId " +
-                            "JOIN Post ON Post.PersonId = Person.id JOIN Topic ON Topic.id = Post.TopicId " +
-                            "JOIN Forum ON Forum.id = ForumId WHERE username = ?" +
+                            "JOIN Topic ON Topic.id = FavouritedTopic.TopicId " +
+                            "JOIN Forum ON Forum.id = ForumId WHERE username = ? " +
                             "GROUP BY Topic.id;";
 
         try (PreparedStatement p = c.prepareStatement(STMT)) {

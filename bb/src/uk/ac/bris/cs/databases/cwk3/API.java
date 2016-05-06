@@ -52,7 +52,7 @@ public class API implements APIProvider {
     public Result<PersonView> getPersonView(String username) {
         final String STMT = "SELECT name, username, studentId FROM Person WHERE username = ?;";
 
-        if (username.isEmpty() || username == null) return Result.failure("Username was empty or null.");
+        if (username == null || username.isEmpty()) return Result.failure("Username was empty or null.");
 
         try (PreparedStatement p = c.prepareStatement(STMT)) {
             if (vt.validateUsername(username) == null) return Result.failure("Username did not exist.");
@@ -293,7 +293,7 @@ public class API implements APIProvider {
         final String selectSTMT = "SELECT title FROM Forum WHERE title = ?;";
         final String insertSTMT = "INSERT INTO Forum (title) VALUES (?);";
 
-        if (title.isEmpty() || title== null) return Result.failure("Title provided must not be empty/null.");
+        if (title== null || title.isEmpty()) return Result.failure("Title provided must not be empty/null.");
 
         try (PreparedStatement p = c.prepareStatement(selectSTMT);
              PreparedStatement p1 = c.prepareStatement(insertSTMT)) {
@@ -352,9 +352,9 @@ public class API implements APIProvider {
     @Override
     public Result addNewPerson(String name, String username, String studentId) {
         final String STMT = "INSERT INTO Person (username, name, studentId) VALUES (?, ?, ?)";
-        if (name.isEmpty()) return Result.failure("name cannot have empty text nor be null.");
-        if (username.isEmpty()) return Result.failure("username cannot have empty text nor be null.");
-        if (studentId.isEmpty()) return Result.failure("studentId cannot have empty text.");
+        if (name == null || name.isEmpty()) return Result.failure("name cannot have empty text nor be null.");
+        if (username == null || username.isEmpty()) return Result.failure("username cannot have empty text nor be null.");
+        if (studentId == null || studentId.isEmpty()) return Result.failure("studentId cannot have empty text.");
 
         try (PreparedStatement p = c.prepareStatement(STMT)) {
             p.setString(1, username);

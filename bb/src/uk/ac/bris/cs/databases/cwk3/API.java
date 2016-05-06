@@ -475,47 +475,7 @@ public class API implements APIProvider {
 
     }
 
-    /**
-     * Used to switch the mode of the likeOrFavouriteNeedsChanging() method.
-     *
-     * */
-    private enum LikeOrFavourite {
-        LIKE,
-        FAVOURITE
-    }
 
-    /**
-     * Checks 1) whether a Topic has already been liked by a given person in the LikedTopic table,
-     * or     2) whether a Topic has already been favourited by a given person in the FavouritedTopic table.
-     *
-     * @param TopicId      - TopicId to check for the existence of in table.
-     * @param PersonId     - PersonId to check for the existence of in table.
-     * @param intendToApply - true if intending to apply like/favourite; false if intending to remove like/favourite.
-     * @param mode - LikeOrFavourite.LIKE for like; LikeOrFavourite.FAVOURITE for favourite.
-     * @return Returns true/false concerning whether an input Person id has already liked an the input Topic id.
-     */
-    private boolean likeOrFavouriteNeedsChanging(long TopicId, long PersonId, boolean intendToApply, LikeOrFavourite mode) throws SQLException {
-        boolean topicAlreadyActedUpon = false;
-        final String whichTable = mode.equals(LikeOrFavourite.FAVOURITE) ? "FavouritedTopic" : "LikedTopic";
-        final String STMT = String.format("SELECT TopicId, PersonId FROM %s WHERE TopicId = ? AND PersonId = ?;", whichTable);
-
-        try (PreparedStatement p = c.prepareStatement(STMT)) {
-            p.setLong(1, TopicId);
-            p.setLong(2, PersonId);
-
-            ResultSet rs = p.executeQuery();
-            if (rs.next()) topicAlreadyActedUpon = true;
-
-            if (intendToApply) {
-                if (topicAlreadyActedUpon) return false;
-            }
-            else {
-                if (!topicAlreadyActedUpon) return false;
-            }
-
-            return true;
-        }
-    }
 
     // TO ALEX - DONE
     @Override
@@ -528,7 +488,7 @@ public class API implements APIProvider {
             Long personId = vt.validateUsername(username);
             if (personId == null) return Result.failure("username did not exist.");
             if (vt.validateTopicId(topicId) == null) return Result.failure("topicId did not exist.");
-            if (!likeOrFavouriteNeedsChanging(topicId, personId, like, LikeOrFavourite.LIKE)) return Result.success();
+            if (!vt.likeOrFavouriteNeedsChanging(topicId, personId, like, ValidityTester.LikeOrFavourite.LIKE)) return Result.success();
 
             p1.setLong(1, topicId);
             p1.setLong(2, personId);
@@ -560,7 +520,7 @@ public class API implements APIProvider {
             Long personId = vt.validateUsername(username);
             if (personId == null) return Result.failure("username did not exist.");
             if (vt.validateTopicId(topicId) == null) return Result.failure("topicId did not exist.");
-            if (!likeOrFavouriteNeedsChanging(topicId, personId, favourite, LikeOrFavourite.FAVOURITE)) return Result.success();
+            if (!vt.likeOrFavouriteNeedsChanging(topicId, personId, favourite, ValidityTester.LikeOrFavourite.FAVOURITE)) return Result.success();
 
             p1.setLong(1, topicId);
             p1.setLong(2, personId);
